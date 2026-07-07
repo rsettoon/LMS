@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { logout } from "../login/actions";
+import AppHeader from "@/app/components/AppHeader";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -26,25 +26,8 @@ export default async function DashboardPage() {
   const isCoordinator = profile?.role === "coordinator";
 
   return (
-    <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🚒</span>
-            <span className="font-semibold text-zinc-900 dark:text-zinc-50">
-              Firefighter Training LMS
-            </span>
-          </div>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <AppHeader />
 
       <div className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
@@ -71,18 +54,42 @@ export default async function DashboardPage() {
                 Manage NFPA 1001 skill sheets and their steps.
               </p>
             </Link>
-            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-              Lessons, assignments, and reports will appear here as we build the
-              next phases.
+            <Link
+              href="/manage/lessons"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Lessons →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Build lessons with a video, credit hours, and skills.
+              </p>
+            </Link>
+            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 sm:col-span-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+              Assignments and reports will appear here as we build the next
+              phases.
             </div>
           </div>
         ) : (
-          <div className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-            Your assigned lessons and training progress will appear here as we
-            build the next phases.
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <Link
+              href="/lessons"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Lessons →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Browse training lessons and watch the demonstrations.
+              </p>
+            </Link>
+            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+              Your assigned lessons and training progress will appear here as we
+              build the next phases.
+            </div>
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
