@@ -17,6 +17,7 @@ function parseSkill(formData: FormData) {
 
   return {
     skill_number: skillNumberRaw ? Number(skillNumberRaw) : null,
+    subsection: String(formData.get("subsection") ?? "").trim() || null,
     title: String(formData.get("title") ?? "").trim(),
     nfpa_edition: String(formData.get("nfpa_edition") ?? "").trim() || null,
     jpr_code: String(formData.get("jpr_code") ?? "").trim() || null,

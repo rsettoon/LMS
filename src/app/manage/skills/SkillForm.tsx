@@ -12,6 +12,7 @@ type SkillAction = (
 type Skill = {
   id?: string;
   skill_number?: number | null;
+  subsection?: string | null;
   title?: string | null;
   nfpa_edition?: string | null;
   jpr_code?: string | null;
@@ -61,7 +62,7 @@ export default function SkillForm({
     <form action={formAction} className="space-y-6">
       {skill?.id && <input type="hidden" name="id" value={skill.id} />}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
         <div>
           <label htmlFor="skill_number" className={labelClass}>
             Skill #
@@ -75,7 +76,21 @@ export default function SkillForm({
             className={inputClass}
           />
         </div>
-        <div className="sm:col-span-3">
+        <div>
+          <label htmlFor="subsection" className={labelClass}>
+            Subsection
+          </label>
+          <input
+            id="subsection"
+            name="subsection"
+            type="text"
+            maxLength={5}
+            defaultValue={skill?.subsection ?? ""}
+            placeholder="A"
+            className={inputClass}
+          />
+        </div>
+        <div className="col-span-2 sm:col-span-4">
           <label htmlFor="title" className={labelClass}>
             Title <span className="text-red-600">*</span>
           </label>

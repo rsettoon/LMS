@@ -7,8 +7,9 @@ export default async function ManageSkillsPage() {
 
   const { data: skills } = await supabase
     .from("skills")
-    .select("id, skill_number, title, jpr_code, jpr_designation")
-    .order("skill_number", { ascending: true, nullsFirst: false });
+    .select("id, skill_number, subsection, title, jpr_code, jpr_designation")
+    .order("skill_number", { ascending: true, nullsFirst: false })
+    .order("subsection", { ascending: true, nullsFirst: true });
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -49,7 +50,8 @@ export default async function ManageSkillsPage() {
                   <div className="truncate font-medium text-zinc-900 dark:text-zinc-50">
                     {skill.skill_number != null && (
                       <span className="text-zinc-400">
-                        {skill.skill_number}.{" "}
+                        {skill.skill_number}
+                        {skill.subsection ?? ""}.{" "}
                       </span>
                     )}
                     {skill.title}
