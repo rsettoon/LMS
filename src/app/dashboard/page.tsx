@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "../login/actions";
@@ -57,11 +58,30 @@ export default async function DashboardPage() {
           .
         </p>
 
-        <div className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-          {isCoordinator
-            ? "Coordinator tools (manage lessons, competencies, assignments, and reports) will appear here as we build the next phases."
-            : "Your assigned lessons and training progress will appear here as we build the next phases."}
-        </div>
+        {isCoordinator ? (
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <Link
+              href="/manage/skills"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Skills →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Manage NFPA 1001 skill sheets and their steps.
+              </p>
+            </Link>
+            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+              Lessons, assignments, and reports will appear here as we build the
+              next phases.
+            </div>
+          </div>
+        ) : (
+          <div className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+            Your assigned lessons and training progress will appear here as we
+            build the next phases.
+          </div>
+        )}
       </div>
     </main>
   );
