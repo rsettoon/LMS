@@ -35,6 +35,9 @@ export default async function AppHeader() {
               <Link href="/manage/assignments" className={linkClass}>
                 Assignments
               </Link>
+              <Link href="/manage/overview" className={linkClass}>
+                Overview
+              </Link>
             </>
           )}
           <form action={logout}>

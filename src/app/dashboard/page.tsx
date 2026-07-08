@@ -177,9 +177,17 @@ export default async function DashboardPage() {
                 Assign lessons to firefighters with due dates.
               </p>
             </Link>
-            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-              Reports will appear here as we build the next phases.
-            </div>
+            <Link
+              href="/manage/overview"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Training overview →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                See every firefighter&apos;s progress, overdue items, and hours.
+              </p>
+            </Link>
           </div>
         ) : (
           <div className="mt-8 space-y-6">
