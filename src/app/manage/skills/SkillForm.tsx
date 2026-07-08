@@ -20,7 +20,10 @@ type Skill = {
   condition?: string | null;
   time_limit_seconds?: number | null;
   notes?: string | null;
+  authoring_entity_id?: string | null;
 };
+
+type Entity = { id: string; name: string };
 
 const labelClass =
   "block text-sm font-medium text-zinc-700 dark:text-zinc-300";
@@ -31,10 +34,12 @@ export default function SkillForm({
   action,
   skill,
   steps,
+  entities,
 }: {
   action: SkillAction;
   skill?: Skill;
   steps?: { step_number: number; description: string }[];
+  entities: Entity[];
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
@@ -160,6 +165,25 @@ export default function SkillForm({
           placeholder="Wearing full protective clothing and SCBA."
           className={inputClass}
         />
+      </div>
+
+      <div>
+        <label htmlFor="authoring_entity_id" className={labelClass}>
+          Authoring entity
+        </label>
+        <select
+          id="authoring_entity_id"
+          name="authoring_entity_id"
+          defaultValue={skill?.authoring_entity_id ?? ""}
+          className={inputClass}
+        >
+          <option value="">— Select —</option>
+          {entities.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

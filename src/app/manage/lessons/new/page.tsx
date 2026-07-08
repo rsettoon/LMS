@@ -12,6 +12,11 @@ export default async function NewLessonPage() {
     .order("skill_number", { ascending: true, nullsFirst: false })
     .order("subsection", { ascending: true, nullsFirst: true });
 
+  const { data: entities } = await supabase
+    .from("authoring_entities")
+    .select("id, name")
+    .order("name", { ascending: true });
+
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -24,7 +29,11 @@ export default async function NewLessonPage() {
         <h1 className="mt-1 mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           New lesson
         </h1>
-        <LessonForm action={createLesson} skills={skills ?? []} />
+        <LessonForm
+          action={createLesson}
+          skills={skills ?? []}
+          entities={entities ?? []}
+        />
       </div>
     </main>
   );

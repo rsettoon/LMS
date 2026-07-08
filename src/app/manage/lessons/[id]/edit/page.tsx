@@ -32,6 +32,11 @@ export default async function EditLessonPage({
     .order("skill_number", { ascending: true, nullsFirst: false })
     .order("subsection", { ascending: true, nullsFirst: true });
 
+  const { data: entities } = await supabase
+    .from("authoring_entities")
+    .select("id, name")
+    .order("name", { ascending: true });
+
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -49,6 +54,7 @@ export default async function EditLessonPage({
           lesson={lesson}
           selectedSkillIds={selectedSkillIds}
           skills={skills ?? []}
+          entities={entities ?? []}
         />
       </div>
     </main>

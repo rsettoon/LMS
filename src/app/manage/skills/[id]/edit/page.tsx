@@ -26,6 +26,11 @@ export default async function EditSkillPage({
     .eq("skill_id", id)
     .order("step_number", { ascending: true });
 
+  const { data: entities } = await supabase
+    .from("authoring_entities")
+    .select("id, name")
+    .order("name", { ascending: true });
+
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -38,7 +43,12 @@ export default async function EditSkillPage({
         <h1 className="mt-1 mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           Edit skill
         </h1>
-        <SkillForm action={updateSkill} skill={skill} steps={steps ?? []} />
+        <SkillForm
+          action={updateSkill}
+          skill={skill}
+          steps={steps ?? []}
+          entities={entities ?? []}
+        />
       </div>
     </main>
   );

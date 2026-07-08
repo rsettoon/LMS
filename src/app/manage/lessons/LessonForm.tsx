@@ -15,7 +15,10 @@ type Lesson = {
   description?: string | null;
   video_url?: string | null;
   credit_hours?: number | null;
+  authoring_entity_id?: string | null;
 };
+
+type Entity = { id: string; name: string };
 
 export type SkillOption = {
   id: string;
@@ -41,11 +44,13 @@ export default function LessonForm({
   lesson,
   selectedSkillIds,
   skills,
+  entities,
 }: {
   action: LessonAction;
   lesson?: Lesson;
   selectedSkillIds?: string[];
   skills: SkillOption[];
+  entities: Entity[];
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const selected = new Set(selectedSkillIds ?? []);
@@ -80,6 +85,25 @@ export default function LessonForm({
           defaultValue={lesson?.description ?? ""}
           className={inputClass}
         />
+      </div>
+
+      <div>
+        <label htmlFor="authoring_entity_id" className={labelClass}>
+          Authoring entity
+        </label>
+        <select
+          id="authoring_entity_id"
+          name="authoring_entity_id"
+          defaultValue={lesson?.authoring_entity_id ?? ""}
+          className={inputClass}
+        >
+          <option value="">— Select —</option>
+          {entities.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

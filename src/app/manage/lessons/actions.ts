@@ -14,6 +14,8 @@ function parseLesson(formData: FormData) {
     description: String(formData.get("description") ?? "").trim() || null,
     video_url: String(formData.get("video_url") ?? "").trim() || null,
     credit_hours: hasCredit ? Number(creditRaw) : null,
+    authoring_entity_id:
+      String(formData.get("authoring_entity_id") ?? "").trim() || null,
   };
 }
 

@@ -65,7 +65,18 @@ export default async function DashboardPage() {
                 Build lessons with a video, credit hours, and skills.
               </p>
             </Link>
-            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 sm:col-span-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+            <Link
+              href="/manage/authoring-entities"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Authoring entities →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Manage the organizations that author skills and lessons.
+              </p>
+            </Link>
+            <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
               Assignments and reports will appear here as we build the next
               phases.
             </div>

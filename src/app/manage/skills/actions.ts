@@ -26,6 +26,8 @@ function parseSkill(formData: FormData) {
     condition: String(formData.get("condition") ?? "").trim() || null,
     time_limit_seconds: totalSeconds || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
+    authoring_entity_id:
+      String(formData.get("authoring_entity_id") ?? "").trim() || null,
   };
 }
 

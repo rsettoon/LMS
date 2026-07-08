@@ -4,7 +4,12 @@ import SkillForm from "../SkillForm";
 import { createSkill } from "../actions";
 
 export default async function NewSkillPage() {
-  await requireCoordinator();
+  const { supabase } = await requireCoordinator();
+
+  const { data: entities } = await supabase
+    .from("authoring_entities")
+    .select("id, name")
+    .order("name", { ascending: true });
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -18,7 +23,7 @@ export default async function NewSkillPage() {
         <h1 className="mt-1 mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           New skill
         </h1>
-        <SkillForm action={createSkill} />
+        <SkillForm action={createSkill} entities={entities ?? []} />
       </div>
     </main>
   );

@@ -34,11 +34,14 @@ export default async function LessonDetailPage({
 
   const { data: lesson } = await supabase
     .from("lessons")
-    .select("*")
+    .select("*, authoring_entities ( name )")
     .eq("id", id)
     .single();
 
   if (!lesson) notFound();
+
+  const authoringEntity =
+    (lesson.authoring_entities as { name: string } | null)?.name ?? null;
 
   const { data: links } = await supabase
     .from("lesson_skills")
@@ -101,6 +104,11 @@ export default async function LessonDetailPage({
           <p className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
             {lesson.credit_hours} training hour
             {lesson.credit_hours === 1 ? "" : "s"}
+          </p>
+        )}
+        {authoringEntity && (
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Authored by {authoringEntity}
           </p>
         )}
         {lesson.description && (
