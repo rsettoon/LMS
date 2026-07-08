@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AppHeader from "@/app/components/AppHeader";
 import { getYouTubeEmbedUrl } from "@/lib/youtube";
+import { markWatched } from "./progress-actions";
 
 type Step = { step_number: number; description: string };
 type LessonSkill = {
@@ -87,6 +88,22 @@ export default async function LessonDetailPage({
     bestAttempt = attempts?.[0] ?? null;
   }
 
+  let progress: {
+    video_watched: boolean;
+    quiz_passed: boolean;
+    completed_at: string | null;
+    hours_awarded: number | null;
+  } | null = null;
+  if (user) {
+    const { data } = await supabase
+      .from("lesson_progress")
+      .select("video_watched, quiz_passed, completed_at, hours_awarded")
+      .eq("lesson_id", id)
+      .eq("firefighter_id", user.id)
+      .maybeSingle();
+    progress = data;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <AppHeader />
@@ -117,6 +134,27 @@ export default async function LessonDetailPage({
           </p>
         )}
 
+        {/* Completion status */}
+        {progress?.completed_at ? (
+          <div className="mt-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">
+            ✅ Lesson complete
+            {progress.hours_awarded != null
+              ? ` — ${progress.hours_awarded} training hour${
+                  progress.hours_awarded === 1 ? "" : "s"
+                } credited`
+              : ""}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+            In progress —{" "}
+            {progress?.video_watched ? "video watched" : "video not watched"}
+            {quiz
+              ? `, quiz ${progress?.quiz_passed ? "passed" : "not passed"}`
+              : ""}
+            .
+          </div>
+        )}
+
         {/* Video */}
         <section className="mt-6">
           {embedUrl ? (
@@ -143,6 +181,24 @@ export default async function LessonDetailPage({
               No video added yet.
             </div>
           )}
+
+          <div className="mt-3">
+            {progress?.video_watched ? (
+              <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                ✓ Video watched
+              </span>
+            ) : (
+              <form action={markWatched}>
+                <input type="hidden" name="lesson_id" value={id} />
+                <button
+                  type="submit"
+                  className="rounded-lg border border-red-600 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                >
+                  Mark video as watched
+                </button>
+              </form>
+            )}
+          </div>
         </section>
 
         {/* Skills covered */}

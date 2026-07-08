@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { applyProgress } from "@/lib/progress";
 
 export type QuizResult = {
   question_id: string;
@@ -39,7 +40,7 @@ export async function submitQuiz(
 
   const { data: quiz } = await supabase
     .from("quizzes")
-    .select("passing_score")
+    .select("lesson_id, passing_score")
     .eq("id", quizId)
     .single();
   if (!quiz) return { error: "Quiz not found." };
@@ -81,6 +82,13 @@ export async function submitQuiz(
     score,
     passed,
   });
+
+  // Record quiz pass toward lesson completion.
+  if (passed) {
+    await applyProgress(supabase, quiz.lesson_id, user.id, {
+      quiz_passed: true,
+    });
+  }
 
   return { graded: true, score, passed, passingScore: quiz.passing_score, results };
 }
