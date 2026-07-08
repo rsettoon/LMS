@@ -68,6 +68,12 @@ export default async function ManageLessonsPage() {
                     >
                       Edit
                     </Link>
+                    <Link
+                      href={`/manage/lessons/${lesson.id}/quiz`}
+                      className="text-sm text-red-600 hover:underline"
+                    >
+                      Quiz
+                    </Link>
                     <form action={deleteLesson}>
                       <input type="hidden" name="id" value={lesson.id} />
                       <button

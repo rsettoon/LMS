@@ -61,6 +61,29 @@ export default async function LessonDetailPage({
 
   const embedUrl = getYouTubeEmbedUrl(lesson.video_url);
 
+  const { data: quiz } = await supabase
+    .from("quizzes")
+    .select("id, passing_score")
+    .eq("lesson_id", id)
+    .maybeSingle();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let bestAttempt: { score: number; passed: boolean } | null = null;
+  if (quiz && user) {
+    const { data: attempts } = await supabase
+      .from("quiz_attempts")
+      .select("score, passed")
+      .eq("quiz_id", quiz.id)
+      .eq("firefighter_id", user.id)
+      .order("passed", { ascending: false })
+      .order("score", { ascending: false })
+      .limit(1);
+    bestAttempt = attempts?.[0] ?? null;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <AppHeader />
@@ -171,10 +194,43 @@ export default async function LessonDetailPage({
           </section>
         )}
 
-        {/* Quiz placeholder */}
-        <section className="mt-8 rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-          📝 Quiz coming soon — you&apos;ll complete a quiz here to finish the
-          lesson.
+        {/* Quiz */}
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Quiz
+          </h2>
+          {!quiz ? (
+            <div className="mt-3 rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+              No quiz has been added to this lesson yet.
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="text-sm">
+                {bestAttempt ? (
+                  bestAttempt.passed ? (
+                    <span className="font-medium text-green-700 dark:text-green-400">
+                      ✅ Passed — best score {bestAttempt.score}%
+                    </span>
+                  ) : (
+                    <span className="font-medium text-red-700 dark:text-red-400">
+                      Not passed yet — best score {bestAttempt.score}% (need{" "}
+                      {quiz.passing_score}%)
+                    </span>
+                  )
+                ) : (
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    Not attempted yet — {quiz.passing_score}% to pass.
+                  </span>
+                )}
+              </div>
+              <Link
+                href={`/lessons/${id}/quiz`}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+              >
+                {bestAttempt ? "Retake quiz" : "Take quiz"}
+              </Link>
+            </div>
+          )}
         </section>
       </main>
     </div>
