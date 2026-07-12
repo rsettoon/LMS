@@ -34,7 +34,14 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/" || path.startsWith("/login");
+  // Invited users land on /set-password with their tokens in the URL *fragment*,
+  // which the server never receives — so this page must load while signed out
+  // and establish the session in the browser. /auth/* is the token_hash variant.
+  const isPublic =
+    path === "/" ||
+    path.startsWith("/login") ||
+    path.startsWith("/auth") ||
+    path.startsWith("/set-password");
 
   // Not signed in and trying to reach a protected page -> send to login.
   if (!user && !isPublic) {

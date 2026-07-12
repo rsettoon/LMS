@@ -188,6 +188,17 @@ export default async function DashboardPage() {
                 See every firefighter&apos;s progress, overdue items, and hours.
               </p>
             </Link>
+            <Link
+              href="/manage/firefighters"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Firefighters →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Invite firefighters individually or import a CSV.
+              </p>
+            </Link>
           </div>
         ) : (
           <div className="mt-8 space-y-6">
