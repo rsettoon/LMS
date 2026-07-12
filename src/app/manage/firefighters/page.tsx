@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCoordinator } from "@/lib/auth";
-import InviteForm from "./InviteForm";
+import AddFirefighterForm from "./InviteForm";
 import ImportForm from "./ImportForm";
 
 type Profile = {
@@ -35,10 +35,14 @@ export default async function ManageFirefightersPage() {
         </h1>
 
         <section className="mb-6 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-          <h2 className="mb-3 font-semibold text-zinc-900 dark:text-zinc-50">
-            Invite a firefighter
+          <h2 className="mb-1 font-semibold text-zinc-900 dark:text-zinc-50">
+            Add a firefighter
           </h2>
-          <InviteForm />
+          <p className="mb-3 text-sm text-zinc-500 dark:text-zinc-400">
+            A temporary password needs no email to be delivered — you hand it to
+            them and they change it after signing in.
+          </p>
+          <AddFirefighterForm />
         </section>
 
         <section className="mb-8 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">

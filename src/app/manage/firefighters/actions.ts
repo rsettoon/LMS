@@ -1,23 +1,42 @@
 "use server";
 
+import { randomInt } from "crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { requireCoordinator } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export type InviteState = { ok?: string; error?: string } | undefined;
-export type ImportState =
-  | { invited: number; skipped: string[]; failed: string[] }
+export type AddState =
+  | { ok: string; tempPassword?: string }
   | { error: string }
   | undefined;
 
-// The invite email links back to this app's /auth/confirm route. Deriving the
-// origin from the request means invites work from localhost and production.
+export type ImportState =
+  | {
+      mode: "password";
+      created: { email: string; password: string }[];
+      skipped: string[];
+      failed: string[];
+    }
+  | { mode: "invite"; invited: number; skipped: string[]; failed: string[] }
+  | { error: string }
+  | undefined;
+
+// Readable temp password: no 0/O/1/l/I to avoid transcription mistakes when
+// the coordinator writes these down or reads them aloud.
+const PW_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+function generatePassword(length = 12) {
+  let out = "";
+  for (let i = 0; i < length; i++) out += PW_CHARS[randomInt(PW_CHARS.length)];
+  return out;
+}
+
 async function getOrigin() {
   const h = await headers();
   const host = h.get("host") ?? "localhost:3000";
   const proto =
-    h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+    h.get("x-forwarded-proto") ??
+    (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
 
@@ -30,35 +49,54 @@ function isDuplicateError(message: string) {
   );
 }
 
-export async function inviteFirefighter(
-  _prev: InviteState,
+export async function addFirefighter(
+  _prev: AddState,
   formData: FormData,
-): Promise<InviteState> {
+): Promise<AddState> {
   await requireCoordinator(); // authorization — never trust the caller
 
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
   const fullName = String(formData.get("full_name") ?? "").trim();
+  const method = String(formData.get("method") ?? "password");
   if (!email) return { error: "Email is required." };
 
-  const origin = await getOrigin();
   const admin = createAdminClient();
 
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: fullName || null },
-    redirectTo: `${origin}/set-password`,
+  if (method === "invite") {
+    const origin = await getOrigin();
+    const { error } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName || null },
+      redirectTo: `${origin}/set-password`,
+    });
+    if (error) {
+      if (isDuplicateError(error.message))
+        return { error: `${email} already has an account.` };
+      return { error: error.message };
+    }
+    revalidatePath("/manage/firefighters");
+    return { ok: `Invitation sent to ${email}.` };
+  }
+
+  // Default: create the account directly with a temporary password. No email
+  // is sent — the coordinator hands the password to the firefighter.
+  const password = generatePassword();
+  const { error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true, // usable immediately; no confirmation email
+    user_metadata: { full_name: fullName || null },
   });
 
   if (error) {
-    if (isDuplicateError(error.message)) {
+    if (isDuplicateError(error.message))
       return { error: `${email} already has an account.` };
-    }
     return { error: error.message };
   }
 
   revalidatePath("/manage/firefighters");
-  return { ok: `Invitation sent to ${email}.` };
+  return { ok: `Account created for ${email}.`, tempPassword: password };
 }
 
 // --- CSV parsing (email,full_name) ---
@@ -100,7 +138,6 @@ function parseCsv(text: string): { email: string; fullName: string }[] {
     .filter(Boolean);
   if (lines.length === 0) return [];
 
-  // Skip a header row if present.
   const start = lines[0].toLowerCase().includes("email") ? 1 : 0;
 
   const rows: { email: string; fullName: string }[] = [];
@@ -129,27 +166,42 @@ export async function importFirefighters(
     return { error: "No rows found. Expected columns: email, full_name." };
   }
 
-  const origin = await getOrigin();
+  const method = String(formData.get("method") ?? "password");
   const admin = createAdminClient();
 
-  let invited = 0;
   const skipped: string[] = [];
   const failed: string[] = [];
 
-  for (const row of rows) {
-    const { error } = await admin.auth.admin.inviteUserByEmail(row.email, {
-      data: { full_name: row.fullName || null },
-      redirectTo: `${origin}/set-password`,
-    });
-    if (!error) {
-      invited++;
-    } else if (isDuplicateError(error.message)) {
-      skipped.push(row.email);
-    } else {
-      failed.push(`${row.email}: ${error.message}`);
+  if (method === "invite") {
+    const origin = await getOrigin();
+    let invited = 0;
+    for (const row of rows) {
+      const { error } = await admin.auth.admin.inviteUserByEmail(row.email, {
+        data: { full_name: row.fullName || null },
+        redirectTo: `${origin}/set-password`,
+      });
+      if (!error) invited++;
+      else if (isDuplicateError(error.message)) skipped.push(row.email);
+      else failed.push(`${row.email}: ${error.message}`);
     }
+    revalidatePath("/manage/firefighters");
+    return { mode: "invite", invited, skipped, failed };
+  }
+
+  const created: { email: string; password: string }[] = [];
+  for (const row of rows) {
+    const password = generatePassword();
+    const { error } = await admin.auth.admin.createUser({
+      email: row.email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: row.fullName || null },
+    });
+    if (!error) created.push({ email: row.email, password });
+    else if (isDuplicateError(error.message)) skipped.push(row.email);
+    else failed.push(`${row.email}: ${error.message}`);
   }
 
   revalidatePath("/manage/firefighters");
-  return { invited, skipped, failed };
+  return { mode: "password", created, skipped, failed };
 }

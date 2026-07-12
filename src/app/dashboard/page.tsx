@@ -128,7 +128,13 @@ export default async function DashboardPage() {
           <span className="font-medium">
             {isCoordinator ? "Training Coordinator" : "Firefighter"}
           </span>
-          .
+          .{" "}
+          <Link
+            href="/set-password"
+            className="text-red-600 hover:underline dark:text-red-400"
+          >
+            Change password
+          </Link>
         </p>
 
         {isCoordinator ? (
