@@ -98,4 +98,5 @@ export async function deleteLesson(formData: FormData) {
     revalidatePath("/manage/lessons");
     revalidatePath("/lessons");
   }
+  redirect("/manage/lessons");
 }

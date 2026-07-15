@@ -71,6 +71,12 @@ export default async function ManageLessonsPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <Link
+                      href={`/manage/lessons/${lesson.id}`}
+                      className="text-sm text-red-600 hover:underline"
+                    >
+                      View
+                    </Link>
+                    <Link
                       href={`/manage/lessons/${lesson.id}/edit`}
                       className="text-sm text-red-600 hover:underline"
                     >

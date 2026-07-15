@@ -117,4 +117,5 @@ export async function deleteSkill(formData: FormData) {
     await supabase.from("skills").delete().eq("id", id);
     revalidatePath("/manage/skills");
   }
+  redirect("/manage/skills");
 }

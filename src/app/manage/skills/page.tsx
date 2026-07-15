@@ -73,6 +73,12 @@ export default async function ManageSkillsPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <Link
+                    href={`/manage/skills/${skill.id}`}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    View
+                  </Link>
+                  <Link
                     href={`/manage/skills/${skill.id}/edit`}
                     className="text-sm text-red-600 hover:underline"
                   >
