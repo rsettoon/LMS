@@ -62,6 +62,15 @@ export default function SkillForm({
       prev.length > 1 ? prev.filter((_, i) => i !== index) : prev,
     );
   }
+  function moveStep(index: number, direction: -1 | 1) {
+    setStepList((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
 
   return (
     <form action={formAction} className="space-y-6">
@@ -232,6 +241,26 @@ export default function SkillForm({
                 placeholder="Open cylinder valve fully"
                 className={inputClass}
               />
+              <div className="mt-0.5 flex shrink-0 flex-col">
+                <button
+                  type="button"
+                  onClick={() => moveStep(i, -1)}
+                  disabled={i === 0}
+                  className="rounded px-1.5 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-500 dark:hover:bg-zinc-800"
+                  aria-label={`Move step ${i + 1} up`}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveStep(i, 1)}
+                  disabled={i === stepList.length - 1}
+                  className="rounded px-1.5 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-500 dark:hover:bg-zinc-800"
+                  aria-label={`Move step ${i + 1} down`}
+                >
+                  ▼
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => removeStep(i)}
