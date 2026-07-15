@@ -22,7 +22,8 @@ export type QuizResultState =
   | undefined;
 
 type OptionRow = { id: string; is_correct: boolean };
-type QuestionRow = { id: string; quiz_options: OptionRow[] | null };
+type QuestionRow = { id: string; question_options: OptionRow[] | null };
+type LinkRow = { questions: QuestionRow | null };
 
 export async function submitQuiz(
   _prev: QuizResultState,
@@ -45,15 +46,17 @@ export async function submitQuiz(
     .single();
   if (!quiz) return { error: "Quiz not found." };
 
-  // Grade on the server — correct answers never depend on client input.
-  const { data: questions } = await supabase
+  // Grade on the server — correct answers come from the DB, not client input.
+  const { data: links } = await supabase
     .from("quiz_questions")
-    .select("id, quiz_options ( id, is_correct )")
+    .select("questions ( id, question_options ( id, is_correct ) )")
     .eq("quiz_id", quizId);
 
   const correctByQuestion = new Map<string, string>();
-  for (const q of (questions as QuestionRow[] | null) ?? []) {
-    const correct = (q.quiz_options ?? []).find((o) => o.is_correct);
+  for (const l of (links as LinkRow[] | null) ?? []) {
+    const q = l.questions;
+    if (!q) continue;
+    const correct = (q.question_options ?? []).find((o) => o.is_correct);
     if (correct) correctByQuestion.set(q.id, correct.id);
   }
 
@@ -83,7 +86,6 @@ export async function submitQuiz(
     passed,
   });
 
-  // Record quiz pass toward lesson completion.
   if (passed) {
     await applyProgress(supabase, quiz.lesson_id, user.id, {
       quiz_passed: true,

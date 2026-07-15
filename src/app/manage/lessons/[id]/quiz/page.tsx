@@ -3,12 +3,10 @@ import { notFound } from "next/navigation";
 import { requireCoordinator } from "@/lib/auth";
 import QuizBuilder from "./QuizBuilder";
 
-type OptionRow = { label: string; is_correct: boolean; position: number };
-type QuestionRow = {
+type BankQuestion = {
+  id: string;
   type: "multiple_choice" | "true_false";
   prompt: string;
-  position: number;
-  quiz_options: OptionRow[] | null;
 };
 
 export default async function ManageQuizPage({
@@ -33,29 +31,21 @@ export default async function ManageQuizPage({
     .maybeSingle();
 
   let initialPassingScore = 80;
-  let initialQuestions: {
-    type: "multiple_choice" | "true_false";
-    prompt: string;
-    options: { label: string; is_correct: boolean }[];
-  }[] = [];
-
+  let initialSelectedIds: string[] = [];
   if (quiz) {
     initialPassingScore = quiz.passing_score;
-    const { data: questions } = await supabase
+    const { data: links } = await supabase
       .from("quiz_questions")
-      .select("type, prompt, position, quiz_options ( label, is_correct, position )")
+      .select("question_id")
       .eq("quiz_id", quiz.id)
       .order("position", { ascending: true });
-
-    initialQuestions = ((questions as QuestionRow[] | null) ?? []).map((q) => ({
-      type: q.type,
-      prompt: q.prompt,
-      options: (q.quiz_options ?? [])
-        .slice()
-        .sort((a, b) => a.position - b.position)
-        .map((o) => ({ label: o.label, is_correct: o.is_correct })),
-    }));
+    initialSelectedIds = (links ?? []).map((l) => l.question_id as string);
   }
+
+  const { data: questions } = await supabase
+    .from("questions")
+    .select("id, type, prompt")
+    .order("prompt", { ascending: true });
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -70,13 +60,13 @@ export default async function ManageQuizPage({
           Quiz
         </h1>
         <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
-          for {lesson.title}
+          for {lesson.title} — pick questions from the bank
         </p>
         <QuizBuilder
           lessonId={id}
-          lessonTitle={lesson.title}
           initialPassingScore={initialPassingScore}
-          initialQuestions={initialQuestions}
+          initialSelectedIds={initialSelectedIds}
+          questions={(questions as BankQuestion[] | null) ?? []}
         />
       </div>
     </main>

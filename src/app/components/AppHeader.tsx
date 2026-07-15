@@ -21,6 +21,9 @@ export default async function AppHeader() {
         </Link>
 
         <nav className="flex items-center gap-4">
+          <Link href="/dashboard" className={linkClass}>
+            Dashboard
+          </Link>
           <Link href="/lessons" className={linkClass}>
             Lessons
           </Link>
@@ -31,6 +34,9 @@ export default async function AppHeader() {
               </Link>
               <Link href="/manage/lessons" className={linkClass}>
                 Manage Lessons
+              </Link>
+              <Link href="/manage/questions" className={linkClass}>
+                Question Bank
               </Link>
               <Link href="/manage/assignments" className={linkClass}>
                 Assignments

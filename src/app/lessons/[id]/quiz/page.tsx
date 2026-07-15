@@ -9,8 +9,9 @@ type QuestionRow = {
   id: string;
   type: "multiple_choice" | "true_false";
   prompt: string;
-  quiz_options: OptionRow[] | null;
+  question_options: OptionRow[] | null;
 };
+type LinkRow = { position: number; questions: QuestionRow | null };
 
 // Fisher–Yates shuffle (returns a new array).
 function shuffle<T>(arr: T[]): T[] {
@@ -71,22 +72,34 @@ export default async function TakeQuizPage({
       );
     }
 
-    // Note: is_correct is intentionally NOT selected, so correct answers never
-    // reach the browser. Grading happens on the server.
-    const { data: questions } = await supabase
+    // is_correct is intentionally NOT selected — correct answers never reach
+    // the browser. Grading happens on the server.
+    const { data: links } = await supabase
       .from("quiz_questions")
-      .select("id, type, prompt, quiz_options ( id, label, position )")
-      .eq("quiz_id", quiz.id);
+      .select(
+        "position, questions ( id, type, prompt, question_options ( id, label, position ) )",
+      )
+      .eq("quiz_id", quiz.id)
+      .order("position", { ascending: true });
 
     const prepared = shuffle(
-      ((questions as QuestionRow[] | null) ?? []).map((q) => ({
-        id: q.id,
-        type: q.type,
-        prompt: q.prompt,
-        options: shuffle(
-          (q.quiz_options ?? []).map((o) => ({ id: o.id, label: o.label })),
-        ),
-      })),
+      ((links as LinkRow[] | null) ?? [])
+        .map((l) => l.questions)
+        .filter((q): q is QuestionRow => Boolean(q))
+        .map((q) => {
+          const opts = q.question_options ?? [];
+          // True/False keeps a fixed order (True first); others shuffle.
+          const ordered =
+            q.type === "true_false"
+              ? opts.slice().sort((a, b) => a.position - b.position)
+              : shuffle(opts);
+          return {
+            id: q.id,
+            type: q.type,
+            prompt: q.prompt,
+            options: ordered.map((o) => ({ id: o.id, label: o.label })),
+          };
+        }),
     );
 
     if (prepared.length === 0) {

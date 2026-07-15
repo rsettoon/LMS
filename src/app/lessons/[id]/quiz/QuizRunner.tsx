@@ -95,6 +95,12 @@ export default function QuizRunner({
           >
             Back to lesson
           </Link>
+          <Link
+            href="/dashboard"
+            className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
+          >
+            Dashboard
+          </Link>
         </div>
       </div>
     );

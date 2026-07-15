@@ -3,6 +3,63 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AppHeader from "@/app/components/AppHeader";
 
+type FfItem = {
+  lessonId: string;
+  title: string;
+  dueDate: string | null;
+  overdue: boolean;
+};
+
+function LessonSection({
+  title,
+  items,
+  emptyText,
+}: {
+  title: string;
+  items: FfItem[];
+  emptyText: string;
+}) {
+  return (
+    <div>
+      <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+        {title} ({items.length})
+      </h2>
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          {emptyText}
+        </div>
+      ) : (
+        <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
+          {items.map((item) => (
+            <li key={item.lessonId}>
+              <Link
+                href={`/lessons/${item.lessonId}`}
+                className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-zinc-900 dark:text-zinc-50">
+                    {item.title}
+                  </div>
+                  {item.dueDate && (
+                    <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Due {item.dueDate}
+                    </div>
+                  )}
+                </div>
+                {item.overdue && (
+                  <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-950/60 dark:text-red-300">
+                    Overdue
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
 
@@ -25,95 +82,87 @@ export default async function DashboardPage() {
   const name = profile?.full_name ?? user.email;
   const isCoordinator = profile?.role === "coordinator";
 
-  type AssignedLesson = {
-    lessonId: string;
-    title: string;
-    dueDate: string | null;
-    status: "completed" | "overdue" | "in_progress" | "not_started";
-  };
-  let assignedLessons: AssignedLesson[] = [];
+  const assignedNotStarted: FfItem[] = [];
+  const inProcess: FfItem[] = [];
+  const completed: FfItem[] = [];
   let hoursEarned = 0;
 
   if (!isCoordinator) {
     const { data: assignments } = await supabase
       .from("assignments")
-      .select("due_date, lesson_id, lessons ( title, credit_hours )")
+      .select("lesson_id, due_date")
       .eq("firefighter_id", user.id);
+    const assignedMap = new Map<string, string | null>();
+    for (const a of assignments ?? [])
+      assignedMap.set(a.lesson_id as string, a.due_date as string | null);
 
     const { data: progressRows } = await supabase
       .from("lesson_progress")
-      .select("lesson_id, video_watched, quiz_passed, completed_at, hours_awarded")
+      .select("lesson_id, video_watched, quiz_passed, completed_at")
       .eq("firefighter_id", user.id);
-
     type ProgressRow = {
       lesson_id: string;
       video_watched: boolean;
       quiz_passed: boolean;
       completed_at: string | null;
-      hours_awarded: number | null;
     };
-    const progressByLesson = new Map<string, ProgressRow>(
-      ((progressRows as ProgressRow[] | null) ?? []).map((p) => [
-        p.lesson_id,
-        p,
-      ]),
-    );
+    const progressByLesson = new Map<string, ProgressRow>();
+    for (const p of (progressRows as ProgressRow[] | null) ?? [])
+      progressByLesson.set(p.lesson_id, p);
 
-    hoursEarned = ((progressRows as ProgressRow[] | null) ?? []).reduce(
-      (sum, p) =>
-        sum + (p.completed_at && p.hours_awarded ? Number(p.hours_awarded) : 0),
-      0,
-    );
+    // Every lesson the firefighter is assigned OR has touched.
+    const ids = new Set<string>([
+      ...assignedMap.keys(),
+      ...progressByLesson.keys(),
+    ]);
+
+    const lessonInfo = new Map<
+      string,
+      { title: string; credit_hours: number | null }
+    >();
+    if (ids.size > 0) {
+      const { data: lessons } = await supabase
+        .from("lessons")
+        .select("id, title, credit_hours")
+        .in("id", [...ids]);
+      for (const l of lessons ?? [])
+        lessonInfo.set(l.id as string, {
+          title: l.title as string,
+          credit_hours: l.credit_hours as number | null,
+        });
+    }
 
     const today = new Date().toISOString().slice(0, 10);
-    type AssignmentRow = {
-      due_date: string | null;
-      lesson_id: string;
-      lessons: { title: string; credit_hours: number | null } | null;
-    };
-    assignedLessons = ((assignments as AssignmentRow[] | null) ?? []).map(
-      (a) => {
-        const p = progressByLesson.get(a.lesson_id);
-        let status: AssignedLesson["status"];
-        if (p?.completed_at) status = "completed";
-        else if (a.due_date && a.due_date < today) status = "overdue";
-        else if (p?.video_watched || p?.quiz_passed) status = "in_progress";
-        else status = "not_started";
-        return {
-          lessonId: a.lesson_id,
-          title: a.lessons?.title ?? "(lesson removed)",
-          dueDate: a.due_date,
-          status,
-        };
-      },
-    );
-  }
 
-  const statusMeta: Record<
-    AssignedLesson["status"],
-    { label: string; className: string }
-  > = {
-    completed: {
-      label: "Completed",
-      className:
-        "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300",
-    },
-    overdue: {
-      label: "Overdue",
-      className:
-        "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
-    },
-    in_progress: {
-      label: "In progress",
-      className:
-        "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
-    },
-    not_started: {
-      label: "Not started",
-      className:
-        "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
-    },
-  };
+    for (const id of ids) {
+      const info = lessonInfo.get(id);
+      if (!info) continue; // lesson was deleted
+      const p = progressByLesson.get(id);
+      const assigned = assignedMap.has(id);
+      const dueDate = assigned ? (assignedMap.get(id) ?? null) : null;
+
+      let status: "completed" | "in_progress" | "not_started";
+      if (p?.completed_at) status = "completed";
+      else if (p?.video_watched || p?.quiz_passed) status = "in_progress";
+      else status = "not_started";
+
+      const item: FfItem = {
+        lessonId: id,
+        title: info.title,
+        dueDate,
+        overdue: !!(dueDate && dueDate < today && status !== "completed"),
+      };
+
+      if (status === "completed") {
+        completed.push(item);
+        hoursEarned += Number(info.credit_hours ?? 0);
+      } else if (status === "in_progress") {
+        inProcess.push(item);
+      } else if (assigned) {
+        assignedNotStarted.push(item);
+      }
+    }
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -159,6 +208,17 @@ export default async function DashboardPage() {
               </div>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                 Build lessons with a video, credit hours, and skills.
+              </p>
+            </Link>
+            <Link
+              href="/manage/questions"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Question bank →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Build reusable questions to add to lesson quizzes.
               </p>
             </Link>
             <Link
@@ -225,43 +285,21 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            <div>
-              <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-                Your assigned lessons
-              </h2>
-              {assignedLessons.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
-                  You have no assigned lessons right now.
-                </div>
-              ) : (
-                <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-                  {assignedLessons.map((a) => (
-                    <li key={a.lessonId}>
-                      <Link
-                        href={`/lessons/${a.lessonId}`}
-                        className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                      >
-                        <div className="min-w-0">
-                          <div className="truncate font-medium text-zinc-900 dark:text-zinc-50">
-                            {a.title}
-                          </div>
-                          {a.dueDate && (
-                            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                              Due {a.dueDate}
-                            </div>
-                          )}
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusMeta[a.status].className}`}
-                        >
-                          {statusMeta[a.status].label}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            <LessonSection
+              title="Assigned, not started"
+              items={assignedNotStarted}
+              emptyText="Nothing assigned and waiting to start."
+            />
+            <LessonSection
+              title="In process"
+              items={inProcess}
+              emptyText="No lessons in process right now."
+            />
+            <LessonSection
+              title="Completed"
+              items={completed}
+              emptyText="No completed lessons yet."
+            />
           </div>
         )}
       </div>

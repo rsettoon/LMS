@@ -6,14 +6,6 @@ import { requireCoordinator } from "@/lib/auth";
 
 export type QuizFormState = { error: string } | undefined;
 
-type OptionDraft = { label: string; is_correct: boolean };
-type QuestionDraft = {
-  type: "multiple_choice" | "true_false";
-  prompt: string;
-  options: OptionDraft[];
-};
-type Payload = { passing_score: number; questions: QuestionDraft[] };
-
 export async function saveQuiz(
   _prev: QuizFormState,
   formData: FormData,
@@ -23,14 +15,7 @@ export async function saveQuiz(
   const lessonId = String(formData.get("lesson_id") ?? "");
   if (!lessonId) return { error: "Missing lesson id." };
 
-  let payload: Payload;
-  try {
-    payload = JSON.parse(String(formData.get("payload") ?? "{}"));
-  } catch {
-    return { error: "Could not read the quiz data." };
-  }
-
-  const passingScore = Number(payload.passing_score);
+  const passingScore = Number(formData.get("passing_score"));
   if (
     !Number.isFinite(passingScore) ||
     passingScore < 1 ||
@@ -39,21 +24,7 @@ export async function saveQuiz(
     return { error: "Passing score must be between 1 and 100." };
   }
 
-  const questions = payload.questions ?? [];
-  if (questions.length === 0) return { error: "Add at least one question." };
-
-  for (const [i, q] of questions.entries()) {
-    if (!q.prompt?.trim()) return { error: `Question ${i + 1} needs a prompt.` };
-    const opts = q.options ?? [];
-    if (opts.length < 2)
-      return { error: `Question ${i + 1} needs at least two options.` };
-    if (opts.some((o) => !o.label?.trim()))
-      return { error: `Question ${i + 1} has an empty answer option.` };
-    if (opts.filter((o) => o.is_correct).length !== 1)
-      return {
-        error: `Question ${i + 1} must have exactly one correct answer.`,
-      };
-  }
+  const questionIds = formData.getAll("question_ids").map(String).filter(Boolean);
 
   // One quiz per lesson: update if it exists, otherwise create.
   const { data: existing } = await supabase
@@ -70,8 +41,6 @@ export async function saveQuiz(
       .update({ passing_score: passingScore })
       .eq("id", quizId);
     if (error) return { error: error.message };
-    // Replace all questions (options cascade-delete with them).
-    await supabase.from("quiz_questions").delete().eq("quiz_id", quizId);
   } else {
     const { data: inserted, error } = await supabase
       .from("quizzes")
@@ -83,30 +52,16 @@ export async function saveQuiz(
     quizId = inserted.id;
   }
 
-  for (const [qi, q] of questions.entries()) {
-    const { data: insertedQ, error: qErr } = await supabase
-      .from("quiz_questions")
-      .insert({
-        quiz_id: quizId,
-        type: q.type,
-        prompt: q.prompt.trim(),
-        position: qi + 1,
-      })
-      .select("id")
-      .single();
-    if (qErr || !insertedQ)
-      return { error: qErr?.message ?? "Could not save a question." };
-
-    const optionRows = q.options.map((o, oi) => ({
-      question_id: insertedQ.id,
-      label: o.label.trim(),
-      is_correct: !!o.is_correct,
-      position: oi + 1,
+  // Replace the question links with the current selection.
+  await supabase.from("quiz_questions").delete().eq("quiz_id", quizId);
+  if (questionIds.length > 0) {
+    const rows = questionIds.map((question_id, i) => ({
+      quiz_id: quizId,
+      question_id,
+      position: i + 1,
     }));
-    const { error: oErr } = await supabase
-      .from("quiz_options")
-      .insert(optionRows);
-    if (oErr) return { error: oErr.message };
+    const { error } = await supabase.from("quiz_questions").insert(rows);
+    if (error) return { error: error.message };
   }
 
   revalidatePath("/manage/lessons");
