@@ -25,12 +25,20 @@ export default async function ManageLessonsPage() {
               Lessons
             </h1>
           </div>
-          <Link
-            href="/manage/lessons/new"
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
-          >
-            + New lesson
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/manage/lessons/import-quiz"
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Import quiz CSV
+            </Link>
+            <Link
+              href="/manage/lessons/new"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+            >
+              + New lesson
+            </Link>
+          </div>
         </div>
 
         {!lessons || lessons.length === 0 ? (

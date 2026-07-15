@@ -26,12 +26,20 @@ export default async function ManageSkillsPage() {
               Skills
             </h1>
           </div>
-          <Link
-            href="/manage/skills/new"
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
-          >
-            + New skill
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/manage/skills/import"
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Import CSV
+            </Link>
+            <Link
+              href="/manage/skills/new"
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+            >
+              + New skill
+            </Link>
+          </div>
         </div>
 
         {!skills || skills.length === 0 ? (
