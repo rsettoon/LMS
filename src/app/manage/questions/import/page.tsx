@@ -25,7 +25,7 @@ export default async function ImportQuestionsPage() {
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
               Columns: <code>question_type, prompt, option_a, option_b,
-              option_c, option_d, correct</code>
+              option_c, option_d, correct, category, skills</code>
             </li>
             <li>
               <code>question_type</code> is <code>multiple_choice</code> or{" "}
@@ -35,6 +35,22 @@ export default async function ImportQuestionsPage() {
             <li>
               <code>correct</code> is the letter of the right answer (
               <code>A</code>, <code>B</code>, …) or the exact answer text
+            </li>
+            <li>
+              <code>category</code> must match a name on your{" "}
+              <Link
+                href="/manage/question-categories"
+                className="text-red-600 hover:underline"
+              >
+                question categories
+              </Link>{" "}
+              list, or it is left blank and reported
+            </li>
+            <li>
+              <code>skills</code> references skills by number + subsection —{" "}
+              <code>10</code>, <code>11A</code>. List several separated by{" "}
+              <code>|</code> or <code>;</code> (e.g. <code>10|11B</code>).
+              Unrecognized ones are reported.
             </li>
             <li>
               Questions with a prompt that already exists in the bank are{" "}

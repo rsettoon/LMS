@@ -28,6 +28,8 @@ function skillLabel(s: SkillOption) {
 
 const inputClass =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50";
+const pickerButtonClass =
+  "shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40";
 
 function trueFalseOptions(): OptionDraft[] {
   return [
@@ -91,11 +93,27 @@ export default function QuestionForm({
     );
   }, [skills, selectedSkillIds, skillFilter]);
 
-  function addSkill(id: string) {
-    setSelectedSkillIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  // Checkboxes staged for the next Add / Remove click.
+  const [pendingAdd, setPendingAdd] = useState<Set<string>>(new Set());
+  const [pendingRemove, setPendingRemove] = useState<Set<string>>(new Set());
+
+  function toggleSet(set: Set<string>, id: string) {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
   }
-  function removeSkill(id: string) {
-    setSelectedSkillIds((prev) => prev.filter((x) => x !== id));
+  function addCheckedSkills() {
+    setSelectedSkillIds((prev) => {
+      const next = [...prev];
+      for (const id of pendingAdd) if (!next.includes(id)) next.push(id);
+      return next;
+    });
+    setPendingAdd(new Set());
+  }
+  function removeCheckedSkills() {
+    setSelectedSkillIds((prev) => prev.filter((id) => !pendingRemove.has(id)));
+    setPendingRemove(new Set());
   }
 
   function changeType(next: "multiple_choice" | "true_false") {
@@ -254,34 +272,44 @@ export default function QuestionForm({
 
       {/* Related skills */}
       <div>
-        <span className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Related skills ({selectedSkills.length})
-        </span>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Related skills ({selectedSkills.length})
+          </span>
+          <button
+            type="button"
+            onClick={removeCheckedSkills}
+            disabled={pendingRemove.size === 0}
+            className={pickerButtonClass}
+          >
+            Remove{pendingRemove.size > 0 ? ` ${pendingRemove.size}` : ""}
+          </button>
+        </div>
+        <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
           Tagging a question with the skills it tests lets you find it fast when
           building a lesson&apos;s quiz.
         </p>
         {selectedSkills.length === 0 ? (
-          <p className="mt-2 rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-            No skills linked yet.
+          <p className="rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            No skills linked yet. Check some below and click Add.
           </p>
         ) : (
-          <ul className="mt-2 divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <ul className="max-h-64 divide-y divide-zinc-200 overflow-y-auto rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
             {selectedSkills.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between gap-3 bg-white px-3 py-2 dark:bg-zinc-900"
-              >
-                <span className="text-sm text-zinc-800 dark:text-zinc-200">
-                  {skillLabel(s)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeSkill(s.id)}
-                  className="shrink-0 text-sm text-zinc-500 hover:text-red-600 hover:underline"
-                >
-                  Remove
-                </button>
+              <li key={s.id} className="bg-white dark:bg-zinc-900">
+                <label className="flex cursor-pointer items-start gap-2 px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                  <input
+                    type="checkbox"
+                    checked={pendingRemove.has(s.id)}
+                    onChange={() =>
+                      setPendingRemove((prev) => toggleSet(prev, s.id))
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+                  />
+                  <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                    {skillLabel(s)}
+                  </span>
+                </label>
               </li>
             ))}
           </ul>
@@ -289,9 +317,19 @@ export default function QuestionForm({
       </div>
 
       <div>
-        <span className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Add skills
-        </span>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Add skills
+          </span>
+          <button
+            type="button"
+            onClick={addCheckedSkills}
+            disabled={pendingAdd.size === 0}
+            className={pickerButtonClass}
+          >
+            Add{pendingAdd.size > 0 ? ` ${pendingAdd.size}` : ""}
+          </button>
+        </div>
         <input
           type="text"
           value={skillFilter}
@@ -308,26 +346,25 @@ export default function QuestionForm({
             first.
           </p>
         ) : (
-          <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
             {availableSkills.map((s) => (
-              <div
+              <label
                 key={s.id}
-                className="flex items-center justify-between gap-3 rounded px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="flex cursor-pointer items-start gap-2 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
               >
+                <input
+                  type="checkbox"
+                  checked={pendingAdd.has(s.id)}
+                  onChange={() => setPendingAdd((prev) => toggleSet(prev, s.id))}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+                />
                 <span className="text-sm text-zinc-800 dark:text-zinc-200">
                   {skillLabel(s)}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => addSkill(s.id)}
-                  className="shrink-0 text-sm text-red-600 hover:underline"
-                >
-                  Add
-                </button>
-              </div>
+              </label>
             ))}
             {availableSkills.length === 0 && (
-              <p className="px-2 py-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
                 {skillFilter
                   ? `No unselected skills match "${skillFilter}".`
                   : "All skills are already linked."}

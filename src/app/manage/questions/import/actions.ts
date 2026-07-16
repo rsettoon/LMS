@@ -5,9 +5,20 @@ import { requireCoordinator } from "@/lib/auth";
 import { parseCsvWithHeaders } from "@/lib/csv";
 
 export type QuestionImportState =
-  | { imported: number; skipped: string[]; errors: string[] }
+  | {
+      imported: number;
+      skipped: string[];
+      warnings: string[];
+      errors: string[];
+    }
   | { error: string }
   | undefined;
+
+// Skills are referenced by number + optional subsection, e.g. "10" or "11A".
+// Several may be listed, separated by | ; or , (inside a quoted cell).
+function skillKeyFromToken(token: string) {
+  return token.trim().toUpperCase().replace(/\s+/g, "");
+}
 
 export async function importQuestions(
   _prev: QuestionImportState,
@@ -31,7 +42,30 @@ export async function importQuestions(
     (existing ?? []).map((q) => String(q.prompt).trim().toLowerCase()),
   );
 
+  // Managed category list.
+  const { data: categories } = await supabase
+    .from("question_categories")
+    .select("id, name");
+  const categoryByName = new Map(
+    (categories ?? []).map((c) => [
+      String(c.name).trim().toLowerCase(),
+      c.id as string,
+    ]),
+  );
+
+  // Skills keyed by number+subsection (e.g. 11A).
+  const { data: skills } = await supabase
+    .from("skills")
+    .select("id, skill_number, subsection");
+  const skillByKey = new Map<string, string>();
+  for (const s of skills ?? []) {
+    if (s.skill_number == null) continue;
+    const key = skillKeyFromToken(`${s.skill_number}${s.subsection ?? ""}`);
+    skillByKey.set(key, s.id as string);
+  }
+
   const skipped: string[] = [];
+  const warnings: string[] = [];
   const errors: string[] = [];
   let imported = 0;
 
@@ -90,9 +124,39 @@ export async function importQuestions(
       continue;
     }
 
+    // Category (unknown names are left blank and reported).
+    const categoryName = (r.category ?? "").trim();
+    let categoryId: string | null = null;
+    if (categoryName) {
+      categoryId = categoryByName.get(categoryName.toLowerCase()) ?? null;
+      if (!categoryId) {
+        warnings.push(
+          `Unknown category "${categoryName}" — left blank on "${prompt.slice(0, 40)}".`,
+        );
+      }
+    }
+
+    // Related skills (unknown references are skipped and reported).
+    const skillIds: string[] = [];
+    const skillsRaw = (r.skills ?? "").trim();
+    if (skillsRaw) {
+      for (const token of skillsRaw.split(/[|;,]/)) {
+        const t = token.trim();
+        if (!t) continue;
+        const id = skillByKey.get(skillKeyFromToken(t));
+        if (id) {
+          if (!skillIds.includes(id)) skillIds.push(id);
+        } else {
+          warnings.push(
+            `Unknown skill "${t}" — not linked on "${prompt.slice(0, 40)}".`,
+          );
+        }
+      }
+    }
+
     const { data: inserted, error } = await supabase
       .from("questions")
-      .insert({ type, prompt })
+      .insert({ type, prompt, category_id: categoryId })
       .select("id")
       .single();
     if (error || !inserted) {
@@ -114,10 +178,25 @@ export async function importQuestions(
       continue;
     }
 
+    if (skillIds.length > 0) {
+      const linkRows = skillIds.map((skill_id) => ({
+        question_id: inserted.id,
+        skill_id,
+      }));
+      const { error: linkError } = await supabase
+        .from("question_skills")
+        .insert(linkRows);
+      if (linkError) {
+        warnings.push(
+          `"${prompt.slice(0, 40)}": skills not linked — ${linkError.message}`,
+        );
+      }
+    }
+
     seen.add(key); // guard against duplicates within the same file
     imported++;
   }
 
   revalidatePath("/manage/questions");
-  return { imported, skipped, errors };
+  return { imported, skipped, warnings, errors };
 }

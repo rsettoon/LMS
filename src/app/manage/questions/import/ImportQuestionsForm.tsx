@@ -37,6 +37,16 @@ export default function ImportQuestionsForm() {
               bank).
             </p>
           )}
+          {state.warnings.length > 0 && (
+            <div className="mt-2 text-amber-700 dark:text-amber-400">
+              Warnings:
+              <ul className="list-disc pl-5">
+                {state.warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {state.errors.length > 0 && (
             <div className="mt-2 text-red-700 dark:text-red-400">
               Errors:
