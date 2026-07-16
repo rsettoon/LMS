@@ -4,14 +4,17 @@ import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { saveQuiz, type QuizFormState } from "./actions";
 
-type BankQuestion = {
+export type BankQuestion = {
   id: string;
   type: "multiple_choice" | "true_false";
   prompt: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  skillIds: string[];
 };
 
 const inputClass =
-  "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50";
+  "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50";
 
 function typeTag(type: BankQuestion["type"]) {
   return type === "true_false" ? "T/F" : "MC";
@@ -22,11 +25,15 @@ export default function QuizBuilder({
   initialPassingScore,
   initialSelectedIds,
   questions,
+  categories,
+  lessonSkillIds,
 }: {
   lessonId: string;
   initialPassingScore: number;
   initialSelectedIds: string[];
   questions: BankQuestion[];
+  categories: { id: string; name: string }[];
+  lessonSkillIds: string[];
 }) {
   const [state, formAction, pending] = useActionState<QuizFormState, FormData>(
     saveQuiz,
@@ -34,25 +41,43 @@ export default function QuizBuilder({
   );
   const [passingScore, setPassingScore] = useState(initialPassingScore);
   const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds);
-  const [filter, setFilter] = useState("");
+
+  const hasLessonSkills = lessonSkillIds.length > 0;
+  const [onlyLessonSkills, setOnlyLessonSkills] = useState(hasLessonSkills);
+  const [text, setText] = useState("");
+  const [categoryId, setCategoryId] = useState("");
 
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
     [questions],
+  );
+  const lessonSkillSet = useMemo(
+    () => new Set(lessonSkillIds),
+    [lessonSkillIds],
   );
 
   const selectedQuestions = selectedIds
     .map((id) => questionById.get(id))
     .filter((q): q is BankQuestion => Boolean(q));
 
-  const available = useMemo(() => {
-    const f = filter.trim().toLowerCase();
+  // Everything not already in the quiz (before the search/category filters).
+  const unselected = useMemo(() => {
     const chosen = new Set(selectedIds);
-    return questions.filter(
-      (q) =>
-        !chosen.has(q.id) && (!f || q.prompt.toLowerCase().includes(f)),
-    );
-  }, [questions, selectedIds, filter]);
+    return questions.filter((q) => !chosen.has(q.id));
+  }, [questions, selectedIds]);
+
+  const available = useMemo(() => {
+    const f = text.trim().toLowerCase();
+    return unselected.filter((q) => {
+      if (onlyLessonSkills && !q.skillIds.some((id) => lessonSkillSet.has(id)))
+        return false;
+      if (categoryId === "__none__" && q.categoryId) return false;
+      if (categoryId && categoryId !== "__none__" && q.categoryId !== categoryId)
+        return false;
+      if (f && !q.prompt.toLowerCase().includes(f)) return false;
+      return true;
+    });
+  }, [unselected, onlyLessonSkills, lessonSkillSet, categoryId, text]);
 
   function add(id: string) {
     setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
@@ -109,6 +134,7 @@ export default function QuizBuilder({
                   </span>
                   <span className="ml-2 text-xs text-zinc-400">
                     {typeTag(q.type)}
+                    {q.categoryName ? ` · ${q.categoryName}` : ""}
                   </span>
                 </span>
                 <button
@@ -132,13 +158,49 @@ export default function QuizBuilder({
           </span>
         </div>
 
-        <input
-          type="text"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter questions…"
-          className={`${inputClass} mb-2 w-full`}
-        />
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Search question text…"
+            className={`${inputClass} flex-1`}
+          />
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className={inputClass}
+            aria-label="Filter by category"
+          >
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+            <option value="__none__">— No category —</option>
+          </select>
+        </div>
+
+        <label className="mb-2 flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+          <input
+            type="checkbox"
+            checked={onlyLessonSkills}
+            onChange={(e) => setOnlyLessonSkills(e.target.checked)}
+            disabled={!hasLessonSkills}
+            className="h-4 w-4 accent-red-600 disabled:opacity-40"
+          />
+          Only questions for this lesson&apos;s skills
+          {!hasLessonSkills && (
+            <span className="text-xs text-zinc-400">
+              (this lesson has no skills linked)
+            </span>
+          )}
+        </label>
+
+        <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+          Showing {available.length} of {unselected.length} available
+        </p>
 
         {questions.length === 0 ? (
           <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
@@ -164,6 +226,7 @@ export default function QuizBuilder({
                   </span>
                   <span className="ml-2 text-xs text-zinc-400">
                     {typeTag(q.type)}
+                    {q.categoryName ? ` · ${q.categoryName}` : ""}
                   </span>
                 </span>
                 <button
@@ -176,11 +239,23 @@ export default function QuizBuilder({
               </div>
             ))}
             {available.length === 0 && (
-              <p className="px-2 py-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-                {filter
-                  ? `No unselected questions match "${filter}".`
-                  : "All bank questions are already in this quiz."}
-              </p>
+              <div className="px-2 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+                {onlyLessonSkills ? (
+                  <>
+                    No available questions are tagged with this lesson&apos;s
+                    skills{text || categoryId ? " and filters" : ""}.{" "}
+                    <button
+                      type="button"
+                      onClick={() => setOnlyLessonSkills(false)}
+                      className="text-red-600 hover:underline"
+                    >
+                      Show all questions
+                    </button>
+                  </>
+                ) : (
+                  "No available questions match your filters."
+                )}
+              </div>
             )}
           </div>
         )}

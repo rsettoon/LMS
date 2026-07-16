@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCoordinator } from "@/lib/auth";
-import QuestionForm from "../../QuestionForm";
+import QuestionForm, { type SkillOption } from "../../QuestionForm";
 import { updateQuestion } from "../../actions";
 
 type OptionRow = { label: string; is_correct: boolean; position: number };
@@ -16,7 +16,7 @@ export default async function EditQuestionPage({
 
   const { data: question } = await supabase
     .from("questions")
-    .select("id, type, prompt")
+    .select("id, type, prompt, category_id")
     .eq("id", id)
     .single();
   if (!question) notFound();
@@ -26,6 +26,22 @@ export default async function EditQuestionPage({
     .select("label, is_correct, position")
     .eq("question_id", id)
     .order("position", { ascending: true });
+
+  const { data: skillLinks } = await supabase
+    .from("question_skills")
+    .select("skill_id")
+    .eq("question_id", id);
+
+  const { data: categories } = await supabase
+    .from("question_categories")
+    .select("id, name")
+    .order("name", { ascending: true });
+
+  const { data: skills } = await supabase
+    .from("skills")
+    .select("id, skill_number, subsection, title, jpr_code")
+    .order("skill_number", { ascending: true, nullsFirst: false })
+    .order("subsection", { ascending: true, nullsFirst: true });
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -41,10 +57,14 @@ export default async function EditQuestionPage({
         </h1>
         <QuestionForm
           action={updateQuestion}
+          categories={categories ?? []}
+          skills={(skills as SkillOption[] | null) ?? []}
           question={{
             id: question.id,
             type: question.type,
             prompt: question.prompt,
+            category_id: question.category_id,
+            skillIds: (skillLinks ?? []).map((l) => l.skill_id as string),
             options: ((options as OptionRow[] | null) ?? []).map((o) => ({
               label: o.label,
               is_correct: o.is_correct,

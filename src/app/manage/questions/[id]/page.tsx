@@ -18,10 +18,30 @@ export default async function ViewQuestionPage({
 
   const { data: question } = await supabase
     .from("questions")
-    .select("id, type, prompt")
+    .select("id, type, prompt, question_categories ( name )")
     .eq("id", id)
     .single();
   if (!question) notFound();
+
+  const categoryName =
+    (question.question_categories as unknown as { name: string } | null)
+      ?.name ?? null;
+
+  type SkillLink = {
+    skills: {
+      skill_number: number | null;
+      subsection: string | null;
+      title: string;
+      jpr_code: string | null;
+    } | null;
+  };
+  const { data: skillLinks } = await supabase
+    .from("question_skills")
+    .select("skills ( skill_number, subsection, title, jpr_code )")
+    .eq("question_id", id);
+  const relatedSkills = ((skillLinks as unknown as SkillLink[] | null) ?? [])
+    .map((l) => l.skills)
+    .filter((s): s is NonNullable<SkillLink["skills"]> => Boolean(s));
 
   const { data: opts } = await supabase
     .from("question_options")
@@ -77,7 +97,25 @@ export default async function ViewQuestionPage({
 
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
           {question.type === "true_false" ? "True / False" : "Multiple choice"}
+          {categoryName && ` · ${categoryName}`}
         </p>
+
+        {relatedSkills.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {relatedSkills.map((s, i) => (
+              <span
+                key={i}
+                className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {s.skill_number != null
+                  ? `${s.skill_number}${s.subsection ?? ""}. `
+                  : ""}
+                {s.title}
+                {s.jpr_code ? ` — NFPA ${s.jpr_code}` : ""}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <p className="font-medium text-zinc-900 dark:text-zinc-50">

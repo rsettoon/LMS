@@ -32,6 +32,30 @@ function validate(payload: Payload | null): string | null {
   return null;
 }
 
+function parseLabels(formData: FormData) {
+  return {
+    categoryId: String(formData.get("category_id") ?? "").trim() || null,
+    skillIds: formData.getAll("skill_ids").map(String).filter(Boolean),
+  };
+}
+
+async function replaceSkillLinks(
+  supabase: Awaited<ReturnType<typeof requireCoordinator>>["supabase"],
+  questionId: string,
+  skillIds: string[],
+) {
+  await supabase.from("question_skills").delete().eq("question_id", questionId);
+  if (skillIds.length > 0) {
+    const rows = skillIds.map((skill_id) => ({
+      question_id: questionId,
+      skill_id,
+    }));
+    const { error } = await supabase.from("question_skills").insert(rows);
+    if (error) return error.message;
+  }
+  return null;
+}
+
 export async function createQuestion(
   _prev: QuestionFormState,
   formData: FormData,
@@ -41,10 +65,15 @@ export async function createQuestion(
   const payload = parsePayload(formData);
   const problem = validate(payload);
   if (problem) return { error: problem };
+  const { categoryId, skillIds } = parseLabels(formData);
 
   const { data: inserted, error } = await supabase
     .from("questions")
-    .insert({ type: payload!.type, prompt: payload!.prompt.trim() })
+    .insert({
+      type: payload!.type,
+      prompt: payload!.prompt.trim(),
+      category_id: categoryId,
+    })
     .select("id")
     .single();
   if (error || !inserted)
@@ -60,6 +89,9 @@ export async function createQuestion(
     .from("question_options")
     .insert(optionRows);
   if (optError) return { error: optError.message };
+
+  const linkError = await replaceSkillLinks(supabase, inserted.id, skillIds);
+  if (linkError) return { error: linkError };
 
   revalidatePath("/manage/questions");
   redirect("/manage/questions");
@@ -77,12 +109,20 @@ export async function updateQuestion(
   const payload = parsePayload(formData);
   const problem = validate(payload);
   if (problem) return { error: problem };
+  const { categoryId, skillIds } = parseLabels(formData);
 
   const { error } = await supabase
     .from("questions")
-    .update({ type: payload!.type, prompt: payload!.prompt.trim() })
+    .update({
+      type: payload!.type,
+      prompt: payload!.prompt.trim(),
+      category_id: categoryId,
+    })
     .eq("id", id);
   if (error) return { error: error.message };
+
+  const linkError = await replaceSkillLinks(supabase, id, skillIds);
+  if (linkError) return { error: linkError };
 
   // Replace options (edits propagate to every quiz using this question).
   await supabase.from("question_options").delete().eq("question_id", id);

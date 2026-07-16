@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { requireCoordinator } from "@/lib/auth";
-import { deleteQuestion } from "./actions";
+import QuestionsBrowser, { type QuestionRow } from "./QuestionsBrowser";
 
 type Row = {
   id: string;
   type: "multiple_choice" | "true_false";
   prompt: string;
+  category_id: string | null;
+  question_categories: { name: string } | null;
   quiz_questions: { count: number }[] | null;
 };
 
@@ -14,10 +16,26 @@ export default async function QuestionBankPage() {
 
   const { data } = await supabase
     .from("questions")
-    .select("id, type, prompt, quiz_questions(count)")
+    .select(
+      "id, type, prompt, category_id, question_categories ( name ), quiz_questions(count)",
+    )
     .order("prompt", { ascending: true });
 
-  const rows = (data as Row[] | null) ?? [];
+  const { data: categories } = await supabase
+    .from("question_categories")
+    .select("id, name")
+    .order("name", { ascending: true });
+
+  const rows: QuestionRow[] = ((data as unknown as Row[] | null) ?? []).map(
+    (q) => ({
+      id: q.id,
+      type: q.type,
+      prompt: q.prompt,
+      categoryId: q.category_id,
+      categoryName: q.question_categories?.name ?? null,
+      usedIn: q.quiz_questions?.[0]?.count ?? 0,
+    }),
+  );
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -35,6 +53,12 @@ export default async function QuestionBankPage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              href="/manage/question-categories"
+              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Categories
+            </Link>
             <Link
               href="/manage/questions/import"
               className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -55,53 +79,7 @@ export default async function QuestionBankPage() {
             No questions yet. Add one, or import a CSV.
           </div>
         ) : (
-          <ul className="divide-y divide-zinc-200 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-            {rows.map((q) => {
-              const usedIn = q.quiz_questions?.[0]?.count ?? 0;
-              return (
-                <li
-                  key={q.id}
-                  className="flex items-center justify-between gap-4 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-zinc-900 dark:text-zinc-50">
-                      {q.prompt}
-                    </div>
-                    <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {q.type === "true_false"
-                        ? "True / False"
-                        : "Multiple choice"}
-                      {" · "}
-                      in {usedIn} quiz{usedIn === 1 ? "" : "zes"}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <Link
-                      href={`/manage/questions/${q.id}`}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      View
-                    </Link>
-                    <Link
-                      href={`/manage/questions/${q.id}/edit`}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      Edit
-                    </Link>
-                    <form action={deleteQuestion}>
-                      <input type="hidden" name="id" value={q.id} />
-                      <button
-                        type="submit"
-                        className="text-sm text-zinc-500 hover:text-red-600 hover:underline"
-                      >
-                        Delete
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <QuestionsBrowser questions={rows} categories={categories ?? []} />
         )}
       </div>
     </main>
