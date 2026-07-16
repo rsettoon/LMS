@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import type { LessonFormState } from "./actions";
 
 type LessonAction = (
@@ -53,7 +53,35 @@ export default function LessonForm({
   entities: Entity[];
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
-  const selected = new Set(selectedSkillIds ?? []);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    selectedSkillIds ?? [],
+  );
+  const [skillFilter, setSkillFilter] = useState("");
+
+  const skillById = useMemo(
+    () => new Map(skills.map((s) => [s.id, s])),
+    [skills],
+  );
+  const selectedSkills = selectedIds
+    .map((id) => skillById.get(id))
+    .filter((s): s is SkillOption => Boolean(s));
+
+  const availableSkills = useMemo(() => {
+    const f = skillFilter.trim().toLowerCase();
+    const chosen = new Set(selectedIds);
+    return skills.filter(
+      (s) =>
+        !chosen.has(s.id) && (!f || skillLabel(s).toLowerCase().includes(f)),
+    );
+  }, [skills, selectedIds, skillFilter]);
+
+  function addSkill(id: string) {
+    setSelectedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }
+  function removeSkill(id: string) {
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  }
 
   return (
     <form action={formAction} className="space-y-6">
@@ -137,38 +165,89 @@ export default function LessonForm({
         </div>
       </div>
 
+      {/* Selected ids submit via hidden inputs so filtering never drops them. */}
+      {selectedIds.map((id) => (
+        <input key={id} type="hidden" name="skill_ids" value={id} />
+      ))}
+
       <div>
-        <span className={labelClass}>Skills covered by this lesson</span>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Check every skill this lesson demonstrates.
-        </p>
-        {skills.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            No skills yet.{" "}
-            <Link href="/manage/skills/new" className="text-red-600 hover:underline">
-              Add a skill first
-            </Link>
-            .
+        <span className={labelClass}>
+          Skills in this lesson ({selectedSkills.length})
+        </span>
+        {selectedSkills.length === 0 ? (
+          <p className="mt-2 rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            No skills yet. Add some from the list below.
           </p>
         ) : (
-          <div className="mt-2 max-h-64 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
-            {skills.map((s) => (
-              <label
+          <ul className="mt-2 divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {selectedSkills.map((s) => (
+              <li
                 key={s.id}
-                className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="flex items-center justify-between gap-3 bg-white px-3 py-2 dark:bg-zinc-900"
               >
-                <input
-                  type="checkbox"
-                  name="skill_ids"
-                  value={s.id}
-                  defaultChecked={selected.has(s.id)}
-                  className="mt-1 h-4 w-4 accent-red-600"
-                />
                 <span className="text-sm text-zinc-800 dark:text-zinc-200">
                   {skillLabel(s)}
                 </span>
-              </label>
+                <button
+                  type="button"
+                  onClick={() => removeSkill(s.id)}
+                  className="shrink-0 text-sm text-zinc-500 hover:text-red-600 hover:underline"
+                >
+                  Remove
+                </button>
+              </li>
             ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2">
+          <span className={labelClass}>Add skills</span>
+        </div>
+
+        <input
+          type="text"
+          value={skillFilter}
+          onChange={(e) => setSkillFilter(e.target.value)}
+          placeholder="Filter skills…"
+          className={`${inputClass} mb-2`}
+        />
+
+        {skills.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            No skills exist yet. Add them in{" "}
+            <Link href="/manage/skills" className="text-red-600 hover:underline">
+              Skills
+            </Link>{" "}
+            first.
+          </p>
+        ) : (
+          <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
+            {availableSkills.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between gap-3 rounded px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                  {skillLabel(s)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => addSkill(s.id)}
+                  className="shrink-0 text-sm text-red-600 hover:underline"
+                >
+                  Add
+                </button>
+              </div>
+            ))}
+            {availableSkills.length === 0 && (
+              <p className="px-2 py-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+                {skillFilter
+                  ? `No unselected skills match "${skillFilter}".`
+                  : "All skills are already in this lesson."}
+              </p>
+            )}
           </div>
         )}
       </div>

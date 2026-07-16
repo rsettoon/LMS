@@ -201,7 +201,7 @@ export default function QuizBuilder({
           {pending ? "Saving…" : "Save quiz"}
         </button>
         <Link
-          href="/manage/lessons"
+          href={`/manage/lessons/${lessonId}/edit`}
           className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
         >
           Cancel

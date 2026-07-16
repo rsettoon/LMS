@@ -66,5 +66,5 @@ export async function saveQuiz(
 
   revalidatePath("/manage/lessons");
   revalidatePath(`/lessons/${lessonId}`);
-  redirect("/manage/lessons");
+  redirect(`/manage/lessons/${lessonId}/edit`);
 }

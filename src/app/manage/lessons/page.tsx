@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireCoordinator } from "@/lib/auth";
 import { deleteLesson } from "./actions";
+import LessonQuickView from "./LessonQuickView";
 
 export default async function ManageLessonsPage() {
   const { supabase } = await requireCoordinator();
@@ -62,23 +63,12 @@ export default async function ManageLessonsPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    <Link
-                      href={`/manage/lessons/${lesson.id}`}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      View
-                    </Link>
+                    <LessonQuickView lessonId={lesson.id} />
                     <Link
                       href={`/manage/lessons/${lesson.id}/edit`}
                       className="text-sm text-red-600 hover:underline"
                     >
                       Edit
-                    </Link>
-                    <Link
-                      href={`/manage/lessons/${lesson.id}/quiz`}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      Quiz
                     </Link>
                     <form action={deleteLesson}>
                       <input type="hidden" name="id" value={lesson.id} />

@@ -56,7 +56,8 @@ export async function createLesson(
 
   revalidatePath("/manage/lessons");
   revalidatePath("/lessons");
-  redirect("/manage/lessons");
+  // Land on the new lesson's Edit page so the Quiz step is right there.
+  redirect(`/manage/lessons/${inserted.id}/edit`);
 }
 
 export async function updateLesson(
@@ -99,4 +100,150 @@ export async function deleteLesson(formData: FormData) {
     revalidatePath("/lessons");
   }
   redirect("/manage/lessons");
+}
+
+// --- Quick view: read-only snapshot of everything in a lesson ---
+
+export type QuickViewSkill = {
+  id: string;
+  skill_number: number | null;
+  subsection: string | null;
+  title: string;
+  jpr_code: string | null;
+  jpr_designation: string | null;
+  condition: string | null;
+  time_limit_seconds: number | null;
+  steps: { step_number: number; description: string }[];
+};
+
+export type QuickViewQuestion = {
+  id: string;
+  type: "multiple_choice" | "true_false";
+  prompt: string;
+  options: { id: string; label: string; is_correct: boolean }[];
+};
+
+export type LessonContent = {
+  title: string;
+  description: string | null;
+  video_url: string | null;
+  credit_hours: number | null;
+  authoringEntity: string | null;
+  skills: QuickViewSkill[];
+  quiz: { passing_score: number; questions: QuickViewQuestion[] } | null;
+};
+
+export async function fetchLessonContent(
+  lessonId: string,
+): Promise<LessonContent | null> {
+  const { supabase } = await requireCoordinator();
+
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .select(
+      "title, description, video_url, credit_hours, authoring_entities ( name )",
+    )
+    .eq("id", lessonId)
+    .single();
+  if (!lesson) return null;
+
+  // Skills (with their ordered steps)
+  const { data: links } = await supabase
+    .from("lesson_skills")
+    .select("skill_id")
+    .eq("lesson_id", lessonId);
+  const skillIds = (links ?? []).map((l) => l.skill_id as string);
+
+  let skills: QuickViewSkill[] = [];
+  if (skillIds.length > 0) {
+    type SkillRow = Omit<QuickViewSkill, "steps"> & {
+      skill_steps: { step_number: number; description: string }[] | null;
+    };
+    const { data } = await supabase
+      .from("skills")
+      .select(
+        "id, skill_number, subsection, title, jpr_code, jpr_designation, condition, time_limit_seconds, skill_steps ( step_number, description )",
+      )
+      .in("id", skillIds)
+      .order("skill_number", { ascending: true, nullsFirst: false })
+      .order("subsection", { ascending: true, nullsFirst: true });
+
+    skills = ((data as SkillRow[] | null) ?? []).map((s) => ({
+      id: s.id,
+      skill_number: s.skill_number,
+      subsection: s.subsection,
+      title: s.title,
+      jpr_code: s.jpr_code,
+      jpr_designation: s.jpr_designation,
+      condition: s.condition,
+      time_limit_seconds: s.time_limit_seconds,
+      steps: (s.skill_steps ?? [])
+        .slice()
+        .sort((a, b) => a.step_number - b.step_number),
+    }));
+  }
+
+  // Quiz (questions in order, with their options)
+  const { data: quizRow } = await supabase
+    .from("quizzes")
+    .select("id, passing_score")
+    .eq("lesson_id", lessonId)
+    .maybeSingle();
+
+  let quiz: LessonContent["quiz"] = null;
+  if (quizRow) {
+    type OptionRow = {
+      id: string;
+      label: string;
+      is_correct: boolean;
+      position: number;
+    };
+    type QRow = {
+      position: number;
+      questions: {
+        id: string;
+        type: "multiple_choice" | "true_false";
+        prompt: string;
+        question_options: OptionRow[] | null;
+      } | null;
+    };
+    const { data: qLinks } = await supabase
+      .from("quiz_questions")
+      .select(
+        "position, questions ( id, type, prompt, question_options ( id, label, is_correct, position ) )",
+      )
+      .eq("quiz_id", quizRow.id)
+      .order("position", { ascending: true });
+
+    const questions = ((qLinks as QRow[] | null) ?? [])
+      .map((l) => l.questions)
+      .filter((q): q is NonNullable<QRow["questions"]> => Boolean(q))
+      .map((q) => ({
+        id: q.id,
+        type: q.type,
+        prompt: q.prompt,
+        options: (q.question_options ?? [])
+          .slice()
+          .sort((a, b) => a.position - b.position)
+          .map((o) => ({
+            id: o.id,
+            label: o.label,
+            is_correct: o.is_correct,
+          })),
+      }));
+
+    quiz = { passing_score: quizRow.passing_score, questions };
+  }
+
+  return {
+    title: lesson.title,
+    description: lesson.description,
+    video_url: lesson.video_url,
+    credit_hours: lesson.credit_hours,
+    authoringEntity:
+      (lesson.authoring_entities as unknown as { name: string } | null)?.name ??
+      null,
+    skills,
+    quiz,
+  };
 }

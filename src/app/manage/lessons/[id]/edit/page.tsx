@@ -46,9 +46,17 @@ export default async function EditLessonPage({
         >
           ← Lessons
         </Link>
-        <h1 className="mt-1 mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-          Edit lesson
-        </h1>
+        <div className="mt-1 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            Edit lesson
+          </h1>
+          <Link
+            href={`/manage/lessons/${id}/quiz`}
+            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            Quiz →
+          </Link>
+        </div>
         <LessonForm
           action={updateLesson}
           lesson={lesson}

@@ -113,7 +113,7 @@ export default async function ViewQuestionPage({
             {usage.map((u) => (
               <li key={u.lessonId}>
                 <Link
-                  href={`/manage/lessons/${u.lessonId}`}
+                  href={`/manage/lessons/${u.lessonId}/quiz`}
                   className="text-red-600 hover:underline"
                 >
                   {u.title}

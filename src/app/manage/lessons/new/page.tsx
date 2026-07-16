@@ -26,9 +26,22 @@ export default async function NewLessonPage() {
         >
           ← Lessons
         </Link>
-        <h1 className="mt-1 mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-          New lesson
-        </h1>
+        <div className="mt-1 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+            New lesson
+          </h1>
+          <button
+            type="button"
+            disabled
+            title="Save the lesson first, then you can build its quiz."
+            className="cursor-not-allowed rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-400 opacity-60 dark:border-zinc-700 dark:text-zinc-500"
+          >
+            Quiz →
+          </button>
+        </div>
+        <p className="-mt-4 mb-6 text-xs text-zinc-500 dark:text-zinc-400">
+          Save the lesson first — then the Quiz button becomes available.
+        </p>
         <LessonForm
           action={createLesson}
           skills={skills ?? []}
