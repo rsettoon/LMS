@@ -102,6 +102,17 @@ export async function importSkills(
       ]),
     );
 
+    // Standards keyed by JPR code so the CSV can reference "4.3.1".
+    const { data: standardsData } = await supabase
+      .from("standards")
+      .select("id, code");
+    const standardByCode = new Map(
+      (standardsData ?? []).map((s) => [
+        String(s.code).trim().toLowerCase(),
+        s.id as string,
+      ]),
+    );
+
     for (const [i, r] of rows.entries()) {
       const title = (r.title ?? "").trim();
       if (!title) {
@@ -133,9 +144,6 @@ export async function importSkills(
         skill_number: skillNumber,
         subsection,
         title,
-        nfpa_edition: (r.nfpa_edition ?? "").trim() || null,
-        jpr_code: (r.jpr_code ?? "").trim() || null,
-        jpr_designation: (r.jpr_designation ?? "").trim() || null,
         condition: (r.condition ?? "").trim() || null,
         time_limit_seconds: parseTimeToSeconds((r.time_limit ?? "").trim()),
         notes: (r.notes ?? "").trim() || null,
@@ -149,6 +157,7 @@ export async function importSkills(
         title,
       );
 
+      let skillId: string;
       if (existingId) {
         const { error } = await supabase
           .from("skills")
@@ -158,7 +167,7 @@ export async function importSkills(
           errors.push(`${title}: ${error.message}`);
           continue;
         }
-        idByKey.set(skillKey(numberRaw, subsection ?? "", title), existingId);
+        skillId = existingId;
         updated++;
       } else {
         const { data: inserted, error } = await supabase
@@ -170,8 +179,31 @@ export async function importSkills(
           errors.push(`${title}: ${error?.message ?? "could not create skill"}`);
           continue;
         }
-        idByKey.set(skillKey(numberRaw, subsection ?? "", title), inserted.id);
+        skillId = inserted.id;
         created++;
+      }
+      idByKey.set(skillKey(numberRaw, subsection ?? "", title), skillId);
+
+      // Link standards by JPR code (unknown codes are reported).
+      const standardsRaw = (r.standards ?? "").trim();
+      if (standardsRaw) {
+        const stdIds: string[] = [];
+        for (const token of standardsRaw.split(/[|;,]/)) {
+          const code = token.trim();
+          if (!code) continue;
+          const stdId = standardByCode.get(code.toLowerCase());
+          if (stdId) {
+            if (!stdIds.includes(stdId)) stdIds.push(stdId);
+          } else {
+            warnings.push(`Unknown JPR code "${code}" — not linked on "${title}".`);
+          }
+        }
+        await supabase.from("skill_standards").delete().eq("skill_id", skillId);
+        if (stdIds.length > 0) {
+          await supabase
+            .from("skill_standards")
+            .insert(stdIds.map((standard_id) => ({ skill_id: skillId, standard_id })));
+        }
       }
     }
   }

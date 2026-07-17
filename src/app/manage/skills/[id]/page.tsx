@@ -44,11 +44,27 @@ export default async function ViewSkillPage({
     .eq("skill_id", id)
     .order("step_number", { ascending: true });
 
+  type StdLink = {
+    standards: {
+      accreditor: string;
+      standard: string;
+      edition: string;
+      code: string;
+      title: string | null;
+    } | null;
+  };
+  const { data: stdLinks } = await supabase
+    .from("skill_standards")
+    .select(
+      "standards ( accreditor, standard, edition, code, title )",
+    )
+    .eq("skill_id", id);
+  const standards = ((stdLinks as unknown as StdLink[] | null) ?? [])
+    .map((l) => l.standards)
+    .filter((s): s is NonNullable<StdLink["standards"]> => Boolean(s));
+
   const authoringEntity =
     (skill.authoring_entities as { name: string } | null)?.name ?? null;
-  const jpr = skill.jpr_code
-    ? `NFPA ${skill.jpr_code}${skill.jpr_designation ? ` (${skill.jpr_designation})` : ""}${skill.nfpa_edition ? `, ${skill.nfpa_edition} edition` : ""}`
-    : null;
   const heading = `${
     skill.skill_number != null
       ? `${skill.skill_number}${skill.subsection ?? ""}. `
@@ -88,8 +104,26 @@ export default async function ViewSkillPage({
           </div>
         </div>
 
+        {standards.length > 0 && (
+          <div className="mt-4">
+            <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Standards / JPRs
+            </span>
+            <ul className="mt-1 space-y-1">
+              {standards.map((s, i) => (
+                <li
+                  key={i}
+                  className="text-sm text-zinc-800 dark:text-zinc-200"
+                >
+                  {s.accreditor} {s.standard}, {s.edition} · JPR {s.code}
+                  {s.title ? ` — ${s.title}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <dl className="mt-6 grid grid-cols-1 gap-4 rounded-xl border border-zinc-200 bg-white p-5 sm:grid-cols-2 dark:border-zinc-800 dark:bg-zinc-900">
-          <Field label="Reference" value={jpr} />
           <Field label="Authoring entity" value={authoringEntity} />
           <Field label="Condition" value={skill.condition} />
           <Field label="Time limit" value={formatTime(skill.time_limit_seconds)} />

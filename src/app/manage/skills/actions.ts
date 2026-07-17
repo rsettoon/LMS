@@ -19,10 +19,6 @@ function parseSkill(formData: FormData) {
     skill_number: skillNumberRaw ? Number(skillNumberRaw) : null,
     subsection: String(formData.get("subsection") ?? "").trim() || null,
     title: String(formData.get("title") ?? "").trim(),
-    nfpa_edition: String(formData.get("nfpa_edition") ?? "").trim() || null,
-    jpr_code: String(formData.get("jpr_code") ?? "").trim() || null,
-    jpr_designation:
-      String(formData.get("jpr_designation") ?? "").trim() || null,
     condition: String(formData.get("condition") ?? "").trim() || null,
     time_limit_seconds: totalSeconds || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
@@ -39,6 +35,27 @@ function parseSteps(formData: FormData) {
     .filter(Boolean);
 }
 
+function parseStandardIds(formData: FormData) {
+  return formData.getAll("standard_ids").map(String).filter(Boolean);
+}
+
+async function replaceStandardLinks(
+  supabase: Awaited<ReturnType<typeof requireCoordinator>>["supabase"],
+  skillId: string,
+  standardIds: string[],
+) {
+  await supabase.from("skill_standards").delete().eq("skill_id", skillId);
+  if (standardIds.length > 0) {
+    const rows = standardIds.map((standard_id) => ({
+      skill_id: skillId,
+      standard_id,
+    }));
+    const { error } = await supabase.from("skill_standards").insert(rows);
+    if (error) return error.message;
+  }
+  return null;
+}
+
 export async function createSkill(
   _prev: SkillFormState,
   formData: FormData,
@@ -48,6 +65,7 @@ export async function createSkill(
   const skill = parseSkill(formData);
   if (!skill.title) return { error: "Title is required." };
   const steps = parseSteps(formData);
+  const standardIds = parseStandardIds(formData);
 
   const { data: inserted, error } = await supabase
     .from("skills")
@@ -71,6 +89,13 @@ export async function createSkill(
     if (stepError) return { error: stepError.message };
   }
 
+  const linkError = await replaceStandardLinks(
+    supabase,
+    inserted.id,
+    standardIds,
+  );
+  if (linkError) return { error: linkError };
+
   revalidatePath("/manage/skills");
   redirect("/manage/skills");
 }
@@ -87,6 +112,7 @@ export async function updateSkill(
   const skill = parseSkill(formData);
   if (!skill.title) return { error: "Title is required." };
   const steps = parseSteps(formData);
+  const standardIds = parseStandardIds(formData);
 
   const { error } = await supabase.from("skills").update(skill).eq("id", id);
   if (error) return { error: error.message };
@@ -104,6 +130,9 @@ export async function updateSkill(
       .insert(rows);
     if (stepError) return { error: stepError.message };
   }
+
+  const linkError = await replaceStandardLinks(supabase, id, standardIds);
+  if (linkError) return { error: linkError };
 
   revalidatePath("/manage/skills");
   redirect("/manage/skills");

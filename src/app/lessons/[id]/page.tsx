@@ -11,11 +11,10 @@ type LessonSkill = {
   skill_number: number | null;
   subsection: string | null;
   title: string;
-  jpr_code: string | null;
-  jpr_designation: string | null;
   condition: string | null;
   time_limit_seconds: number | null;
   skill_steps: Step[] | null;
+  skill_standards: { standards: { code: string } | null }[] | null;
 };
 
 function formatTime(seconds: number | null): string | null {
@@ -55,12 +54,12 @@ export default async function LessonDetailPage({
     const { data } = await supabase
       .from("skills")
       .select(
-        "id, skill_number, subsection, title, jpr_code, jpr_designation, condition, time_limit_seconds, skill_steps ( step_number, description )",
+        "id, skill_number, subsection, title, condition, time_limit_seconds, skill_steps ( step_number, description ), skill_standards ( standards ( code ) )",
       )
       .in("id", skillIds)
       .order("skill_number", { ascending: true, nullsFirst: false })
       .order("subsection", { ascending: true, nullsFirst: true });
-    skills = (data as LessonSkill[] | null) ?? [];
+    skills = (data as unknown as LessonSkill[] | null) ?? [];
   }
 
   const embedUrl = getYouTubeEmbedUrl(lesson.video_url);
@@ -228,14 +227,14 @@ export default async function LessonDetailPage({
                       {skill.title}
                     </div>
                     <div className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-                      {skill.jpr_code && (
-                        <span>
-                          NFPA {skill.jpr_code}
-                          {skill.jpr_designation
-                            ? ` (${skill.jpr_designation})`
-                            : ""}
-                        </span>
-                      )}
+                      {(() => {
+                        const codes = (skill.skill_standards ?? [])
+                          .map((ss) => ss.standards?.code)
+                          .filter(Boolean);
+                        return codes.length > 0 ? (
+                          <span>JPR {codes.join(", ")}</span>
+                        ) : null;
+                      })()}
                       {time && <span> · Time: {time}</span>}
                     </div>
                     {skill.condition && (

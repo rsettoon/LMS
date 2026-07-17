@@ -31,8 +31,8 @@ export default async function ImportSkillsPage() {
           <ul className="mt-3 list-disc space-y-1 pl-5">
             <li>
               <strong>skills.csv</strong> — <code>skill_number, subsection,
-              title, nfpa_edition, jpr_code, jpr_designation, condition,
-              time_limit, notes, authoring_entity</code>
+              title, condition, time_limit, notes, authoring_entity,
+              standards</code>
             </li>
             <li>
               <strong>skill-steps.csv</strong> — <code>skill_number,
@@ -51,6 +51,17 @@ export default async function ImportSkillsPage() {
                 authoring entities
               </Link>{" "}
               list, or it is left blank and reported
+            </li>
+            <li>
+              <code>standards</code> references JPR codes from your{" "}
+              <Link
+                href="/manage/standards"
+                className="text-red-600 hover:underline"
+              >
+                Standards
+              </Link>{" "}
+              table (e.g. <code>4.3.1</code>, or several via{" "}
+              <code>4.2.4|4.3.5</code>). Unknown codes are reported.
             </li>
             <li>
               Re-importing a skill with the same number + subsection{" "}

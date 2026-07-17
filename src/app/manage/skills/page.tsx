@@ -5,11 +5,21 @@ import { deleteSkill } from "./actions";
 export default async function ManageSkillsPage() {
   const { supabase } = await requireCoordinator();
 
-  const { data: skills } = await supabase
+  type SkillRow = {
+    id: string;
+    skill_number: number | null;
+    subsection: string | null;
+    title: string;
+    skill_standards: { standards: { standard: string; code: string } | null }[] | null;
+  };
+  const { data: skillsData } = await supabase
     .from("skills")
-    .select("id, skill_number, subsection, title, jpr_code, jpr_designation")
+    .select(
+      "id, skill_number, subsection, title, skill_standards ( standards ( standard, code ) )",
+    )
     .order("skill_number", { ascending: true, nullsFirst: false })
     .order("subsection", { ascending: true, nullsFirst: true });
+  const skills = (skillsData as unknown as SkillRow[] | null) ?? [];
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -42,7 +52,7 @@ export default async function ManageSkillsPage() {
           </div>
         </div>
 
-        {!skills || skills.length === 0 ? (
+        {skills.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
             No skills yet. Click <span className="font-medium">New skill</span>{" "}
             to add your first one.
@@ -64,12 +74,16 @@ export default async function ManageSkillsPage() {
                     )}
                     {skill.title}
                   </div>
-                  {skill.jpr_code && (
-                    <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                      NFPA {skill.jpr_code}
-                      {skill.jpr_designation ? ` (${skill.jpr_designation})` : ""}
-                    </div>
-                  )}
+                  {(() => {
+                    const codes = (skill.skill_standards ?? [])
+                      .map((ss) => ss.standards?.code)
+                      .filter(Boolean);
+                    return codes.length > 0 ? (
+                      <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                        JPR {codes.join(", ")}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <Link

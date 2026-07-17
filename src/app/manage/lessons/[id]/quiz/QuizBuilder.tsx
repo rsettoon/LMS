@@ -52,6 +52,7 @@ export default function QuizBuilder({
   const [onlyLessonSkills, setOnlyLessonSkills] = useState(hasLessonSkills);
   const [text, setText] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
 
   const questionById = useMemo(
     () => new Map(questions.map((q) => [q.id, q])),
@@ -182,9 +183,17 @@ export default function QuizBuilder({
       {/* Add from bank */}
       <div>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <button
+            type="button"
+            onClick={() => setAddOpen((o) => !o)}
+            className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            <span className="text-xs text-zinc-400">{addOpen ? "▾" : "▸"}</span>
             Add from the bank
-          </span>
+            <span className="text-xs font-normal text-zinc-400">
+              ({available.length})
+            </span>
+          </button>
           <button
             type="button"
             onClick={addChecked}
@@ -195,6 +204,8 @@ export default function QuizBuilder({
           </button>
         </div>
 
+        {addOpen && (
+          <>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <input
             type="text"
@@ -295,6 +306,8 @@ export default function QuizBuilder({
               </div>
             )}
           </div>
+        )}
+          </>
         )}
       </div>
 

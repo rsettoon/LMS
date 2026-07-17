@@ -109,8 +109,7 @@ export type QuickViewSkill = {
   skill_number: number | null;
   subsection: string | null;
   title: string;
-  jpr_code: string | null;
-  jpr_designation: string | null;
+  standards: string[];
   condition: string | null;
   time_limit_seconds: number | null;
   steps: { step_number: number; description: string }[];
@@ -156,25 +155,35 @@ export async function fetchLessonContent(
 
   let skills: QuickViewSkill[] = [];
   if (skillIds.length > 0) {
-    type SkillRow = Omit<QuickViewSkill, "steps"> & {
+    type SkillRow = {
+      id: string;
+      skill_number: number | null;
+      subsection: string | null;
+      title: string;
+      condition: string | null;
+      time_limit_seconds: number | null;
       skill_steps: { step_number: number; description: string }[] | null;
+      skill_standards:
+        | { standards: { standard: string; code: string } | null }[]
+        | null;
     };
     const { data } = await supabase
       .from("skills")
       .select(
-        "id, skill_number, subsection, title, jpr_code, jpr_designation, condition, time_limit_seconds, skill_steps ( step_number, description )",
+        "id, skill_number, subsection, title, condition, time_limit_seconds, skill_steps ( step_number, description ), skill_standards ( standards ( standard, code ) )",
       )
       .in("id", skillIds)
       .order("skill_number", { ascending: true, nullsFirst: false })
       .order("subsection", { ascending: true, nullsFirst: true });
 
-    skills = ((data as SkillRow[] | null) ?? []).map((s) => ({
+    skills = ((data as unknown as SkillRow[] | null) ?? []).map((s) => ({
       id: s.id,
       skill_number: s.skill_number,
       subsection: s.subsection,
       title: s.title,
-      jpr_code: s.jpr_code,
-      jpr_designation: s.jpr_designation,
+      standards: (s.skill_standards ?? [])
+        .map((ss) => ss.standards?.code)
+        .filter((c): c is string => Boolean(c)),
       condition: s.condition,
       time_limit_seconds: s.time_limit_seconds,
       steps: (s.skill_steps ?? [])

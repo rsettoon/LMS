@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCoordinator } from "@/lib/auth";
-import SkillForm from "../../SkillForm";
+import SkillForm, { type StandardOption } from "../../SkillForm";
 import { updateSkill } from "../../actions";
 
 export default async function EditSkillPage({
@@ -31,6 +31,20 @@ export default async function EditSkillPage({
     .select("id, name")
     .order("name", { ascending: true });
 
+  const { data: standards } = await supabase
+    .from("standards")
+    .select("id, accreditor, standard, edition, code, title")
+    .order("standard", { ascending: true })
+    .order("code", { ascending: true });
+
+  const { data: stdLinks } = await supabase
+    .from("skill_standards")
+    .select("standard_id")
+    .eq("skill_id", id);
+  const selectedStandardIds = (stdLinks ?? []).map(
+    (l) => l.standard_id as string,
+  );
+
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -48,6 +62,8 @@ export default async function EditSkillPage({
           skill={skill}
           steps={steps ?? []}
           entities={entities ?? []}
+          standards={(standards as StandardOption[] | null) ?? []}
+          selectedStandardIds={selectedStandardIds}
         />
       </div>
     </main>

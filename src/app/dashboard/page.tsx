@@ -233,6 +233,17 @@ export default async function DashboardPage() {
               </p>
             </Link>
             <Link
+              href="/manage/standards"
+              className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
+            >
+              <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Standards →
+              </div>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                Manage the NFPA JPR standards that skills reference.
+              </p>
+            </Link>
+            <Link
               href="/manage/assignments"
               className="rounded-xl border border-zinc-200 bg-white p-6 transition-colors hover:border-red-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-red-800"
             >

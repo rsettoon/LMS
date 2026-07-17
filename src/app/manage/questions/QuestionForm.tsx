@@ -76,6 +76,7 @@ export default function QuestionForm({
     question?.skillIds ?? [],
   );
   const [skillFilter, setSkillFilter] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
 
   const skillById = useMemo(
     () => new Map(skills.map((s) => [s.id, s])),
@@ -318,9 +319,17 @@ export default function QuestionForm({
 
       <div>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <button
+            type="button"
+            onClick={() => setAddOpen((o) => !o)}
+            className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            <span className="text-xs text-zinc-400">{addOpen ? "▾" : "▸"}</span>
             Add skills
-          </span>
+            <span className="text-xs font-normal text-zinc-400">
+              ({availableSkills.length})
+            </span>
+          </button>
           <button
             type="button"
             onClick={addCheckedSkills}
@@ -330,47 +339,56 @@ export default function QuestionForm({
             Add{pendingAdd.size > 0 ? ` ${pendingAdd.size}` : ""}
           </button>
         </div>
-        <input
-          type="text"
-          value={skillFilter}
-          onChange={(e) => setSkillFilter(e.target.value)}
-          placeholder="Filter skills…"
-          className={`${inputClass} mb-2`}
-        />
-        {skills.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-            No skills exist yet. Add them in{" "}
-            <Link href="/manage/skills" className="text-red-600 hover:underline">
-              Skills
-            </Link>{" "}
-            first.
-          </p>
-        ) : (
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-            {availableSkills.map((s) => (
-              <label
-                key={s.id}
-                className="flex cursor-pointer items-start gap-2 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
-              >
-                <input
-                  type="checkbox"
-                  checked={pendingAdd.has(s.id)}
-                  onChange={() => setPendingAdd((prev) => toggleSet(prev, s.id))}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
-                />
-                <span className="text-sm text-zinc-800 dark:text-zinc-200">
-                  {skillLabel(s)}
-                </span>
-              </label>
-            ))}
-            {availableSkills.length === 0 && (
-              <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-                {skillFilter
-                  ? `No unselected skills match "${skillFilter}".`
-                  : "All skills are already linked."}
+        {addOpen && (
+          <>
+            <input
+              type="text"
+              value={skillFilter}
+              onChange={(e) => setSkillFilter(e.target.value)}
+              placeholder="Filter skills…"
+              className={`${inputClass} mb-2`}
+            />
+            {skills.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                No skills exist yet. Add them in{" "}
+                <Link
+                  href="/manage/skills"
+                  className="text-red-600 hover:underline"
+                >
+                  Skills
+                </Link>{" "}
+                first.
               </p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                {availableSkills.map((s) => (
+                  <label
+                    key={s.id}
+                    className="flex cursor-pointer items-start gap-2 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={pendingAdd.has(s.id)}
+                      onChange={() =>
+                        setPendingAdd((prev) => toggleSet(prev, s.id))
+                      }
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+                    />
+                    <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                      {skillLabel(s)}
+                    </span>
+                  </label>
+                ))}
+                {availableSkills.length === 0 && (
+                  <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                    {skillFilter
+                      ? `No unselected skills match "${skillFilter}".`
+                      : "All skills are already linked."}
+                  </p>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
 

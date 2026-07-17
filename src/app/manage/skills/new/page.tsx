@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCoordinator } from "@/lib/auth";
-import SkillForm from "../SkillForm";
+import SkillForm, { type StandardOption } from "../SkillForm";
 import { createSkill } from "../actions";
 
 export default async function NewSkillPage() {
@@ -10,6 +10,12 @@ export default async function NewSkillPage() {
     .from("authoring_entities")
     .select("id, name")
     .order("name", { ascending: true });
+
+  const { data: standards } = await supabase
+    .from("standards")
+    .select("id, accreditor, standard, edition, code, title")
+    .order("standard", { ascending: true })
+    .order("code", { ascending: true });
 
   return (
     <main className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -23,7 +29,11 @@ export default async function NewSkillPage() {
         <h1 className="mt-1 mb-6 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
           New skill
         </h1>
-        <SkillForm action={createSkill} entities={entities ?? []} />
+        <SkillForm
+          action={createSkill}
+          entities={entities ?? []}
+          standards={(standards as StandardOption[] | null) ?? []}
+        />
       </div>
     </main>
   );

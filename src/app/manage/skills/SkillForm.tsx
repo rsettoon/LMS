@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import type { SkillFormState } from "./actions";
 
 type SkillAction = (
@@ -14,9 +14,6 @@ type Skill = {
   skill_number?: number | null;
   subsection?: string | null;
   title?: string | null;
-  nfpa_edition?: string | null;
-  jpr_code?: string | null;
-  jpr_designation?: string | null;
   condition?: string | null;
   time_limit_seconds?: number | null;
   notes?: string | null;
@@ -25,27 +22,94 @@ type Skill = {
 
 type Entity = { id: string; name: string };
 
+export type StandardOption = {
+  id: string;
+  accreditor: string;
+  standard: string;
+  edition: string;
+  code: string;
+  title: string | null;
+};
+
+function standardLabel(s: StandardOption) {
+  const ref = `${s.accreditor} ${s.standard}, ${s.edition} · JPR ${s.code}`;
+  return s.title ? `${ref} — ${s.title}` : ref;
+}
+
 const labelClass =
   "block text-sm font-medium text-zinc-700 dark:text-zinc-300";
 const inputClass =
   "mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-50";
+const pickerButtonClass =
+  "shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40";
 
 export default function SkillForm({
   action,
   skill,
   steps,
   entities,
+  standards,
+  selectedStandardIds,
 }: {
   action: SkillAction;
   skill?: Skill;
   steps?: { step_number: number; description: string }[];
   entities: Entity[];
+  standards: StandardOption[];
+  selectedStandardIds?: string[];
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
   const [stepList, setStepList] = useState<string[]>(
     steps && steps.length > 0 ? steps.map((s) => s.description) : [""],
   );
+
+  // Standards picker (batch add/remove, like the other pickers).
+  const [selectedStdIds, setSelectedStdIds] = useState<string[]>(
+    selectedStandardIds ?? [],
+  );
+  const [stdFilter, setStdFilter] = useState("");
+  const [addStdOpen, setAddStdOpen] = useState(false);
+  const [pendingAddStd, setPendingAddStd] = useState<Set<string>>(new Set());
+  const [pendingRemoveStd, setPendingRemoveStd] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const standardById = useMemo(
+    () => new Map(standards.map((s) => [s.id, s])),
+    [standards],
+  );
+  const selectedStandards = selectedStdIds
+    .map((id) => standardById.get(id))
+    .filter((s): s is StandardOption => Boolean(s));
+  const availableStandards = useMemo(() => {
+    const f = stdFilter.trim().toLowerCase();
+    const chosen = new Set(selectedStdIds);
+    return standards.filter(
+      (s) =>
+        !chosen.has(s.id) &&
+        (!f || standardLabel(s).toLowerCase().includes(f)),
+    );
+  }, [standards, selectedStdIds, stdFilter]);
+
+  function toggleStd(set: Set<string>, id: string) {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  }
+  function addCheckedStd() {
+    setSelectedStdIds((prev) => {
+      const next = [...prev];
+      for (const id of pendingAddStd) if (!next.includes(id)) next.push(id);
+      return next;
+    });
+    setPendingAddStd(new Set());
+  }
+  function removeCheckedStd() {
+    setSelectedStdIds((prev) => prev.filter((id) => !pendingRemoveStd.has(id)));
+    setPendingRemoveStd(new Set());
+  }
 
   const totalSeconds = skill?.time_limit_seconds ?? 0;
   const initialMinutes = totalSeconds ? Math.floor(totalSeconds / 60) : "";
@@ -120,46 +184,127 @@ export default function SkillForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
-          <label htmlFor="nfpa_edition" className={labelClass}>
-            NFPA edition
-          </label>
-          <input
-            id="nfpa_edition"
-            name="nfpa_edition"
-            type="text"
-            defaultValue={skill?.nfpa_edition ?? ""}
-            placeholder="2019"
-            className={inputClass}
-          />
+      {/* Standards (JPRs) — selected ids submit as hidden inputs */}
+      {selectedStdIds.map((id) => (
+        <input key={id} type="hidden" name="standard_ids" value={id} />
+      ))}
+
+      <div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <span className={labelClass}>
+            Standards / JPRs ({selectedStandards.length})
+          </span>
+          <button
+            type="button"
+            onClick={removeCheckedStd}
+            disabled={pendingRemoveStd.size === 0}
+            className={pickerButtonClass}
+          >
+            Remove{pendingRemoveStd.size > 0 ? ` ${pendingRemoveStd.size}` : ""}
+          </button>
         </div>
-        <div>
-          <label htmlFor="jpr_code" className={labelClass}>
-            JPR code
-          </label>
-          <input
-            id="jpr_code"
-            name="jpr_code"
-            type="text"
-            defaultValue={skill?.jpr_code ?? ""}
-            placeholder="4.3.1"
-            className={inputClass}
-          />
+        {selectedStandards.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-zinc-300 p-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            No standards linked. Check some below and click Add.
+          </p>
+        ) : (
+          <ul className="max-h-56 divide-y divide-zinc-200 overflow-y-auto rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {selectedStandards.map((s) => (
+              <li key={s.id} className="bg-white dark:bg-zinc-900">
+                <label className="flex cursor-pointer items-start gap-2 px-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                  <input
+                    type="checkbox"
+                    checked={pendingRemoveStd.has(s.id)}
+                    onChange={() =>
+                      setPendingRemoveStd((prev) => toggleStd(prev, s.id))
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+                  />
+                  <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                    {standardLabel(s)}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setAddStdOpen((o) => !o)}
+            className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          >
+            <span className="text-xs text-zinc-400">
+              {addStdOpen ? "▾" : "▸"}
+            </span>
+            Add standards
+            <span className="text-xs font-normal text-zinc-400">
+              ({availableStandards.length})
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={addCheckedStd}
+            disabled={pendingAddStd.size === 0}
+            className={pickerButtonClass}
+          >
+            Add{pendingAddStd.size > 0 ? ` ${pendingAddStd.size}` : ""}
+          </button>
         </div>
-        <div>
-          <label htmlFor="jpr_designation" className={labelClass}>
-            Designation
-          </label>
-          <input
-            id="jpr_designation"
-            name="jpr_designation"
-            type="text"
-            defaultValue={skill?.jpr_designation ?? ""}
-            placeholder="B"
-            className={inputClass}
-          />
-        </div>
+        {addStdOpen && (
+          <>
+            <input
+              type="text"
+              value={stdFilter}
+              onChange={(e) => setStdFilter(e.target.value)}
+              placeholder="Filter by code or title…"
+              className={`${inputClass} mb-2`}
+            />
+            {standards.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                No standards exist yet. Add them in{" "}
+                <Link
+                  href="/manage/standards"
+                  className="text-red-600 hover:underline"
+                >
+                  Standards
+                </Link>{" "}
+                first.
+              </p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                {availableStandards.map((s) => (
+                  <label
+                    key={s.id}
+                    className="flex cursor-pointer items-start gap-2 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={pendingAddStd.has(s.id)}
+                      onChange={() =>
+                        setPendingAddStd((prev) => toggleStd(prev, s.id))
+                      }
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+                    />
+                    <span className="text-sm text-zinc-800 dark:text-zinc-200">
+                      {standardLabel(s)}
+                    </span>
+                  </label>
+                ))}
+                {availableStandards.length === 0 && (
+                  <p className="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                    {stdFilter
+                      ? `No unselected standards match "${stdFilter}".`
+                      : "All standards are already linked."}
+                  </p>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div>

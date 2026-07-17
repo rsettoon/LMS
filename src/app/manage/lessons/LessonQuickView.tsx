@@ -171,13 +171,8 @@ export default function LessonQuickView({ lessonId }: { lessonId: string }) {
                             {s.title}
                           </div>
                           <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                            {s.jpr_code && (
-                              <span>
-                                NFPA {s.jpr_code}
-                                {s.jpr_designation
-                                  ? ` (${s.jpr_designation})`
-                                  : ""}
-                              </span>
+                            {s.standards.length > 0 && (
+                              <span>JPR {s.standards.join(", ")}</span>
                             )}
                             {time && <span> · Time: {time}</span>}
                           </div>
